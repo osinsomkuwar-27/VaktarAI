@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI Spec — Landing Page & Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080f;
+    --surface: #0d0d1a;
+    --card: #11111c;
+    --border: #1a1a2e;
+    --accent: #e8ff47;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --green: #4fffb0;
+    --pink: #f472b6;
+    --orange: #fb923c;
+    --text: #d0d0e8;
+    --muted: #50507a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    padding: 48px 24px 100px;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(96,165,250,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(96,165,250,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+  /* HEADER */
+  .header {
+    text-align: center; margin-bottom: 70px;
+    animation: fadeDown 0.7s ease both;
+  }
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--blue); border: 1px solid var(--blue);
+    padding: 4px 14px; margin-bottom: 20px;
+  }
+  .header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(52px, 8vw, 90px);
+    line-height: 0.9; color: #fff; margin-bottom: 14px;
+  }
+  .header h1 em { color: var(--accent); font-style: normal; }
+  .header p { color: var(--muted); font-size: 14px; line-height: 1.8; max-width: 520px; margin: 0 auto; }
+  /* PAGE LABEL */
+  .page-label {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 24px;
+  }
+  .page-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px; letter-spacing: 1px;
+  }
+  .page-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 4px 12px; border: 1px solid;
+  }
+  .page-desc {
+    color: var(--muted); font-size: 13px; line-height: 1.7;
+    margin-bottom: 28px; max-width: 700px;
+  }
+  /* SECTION DIVIDER */
+  .sec {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--muted); margin: 40px 0 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sec::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  /* ELEMENT CARDS GRID */
+  .elements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2px; margin-bottom: 4px;
+  }
+  .el-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 24px;
+    transition: border-color 0.3s, transform 0.3s;
+    animation: fadeUp 0.5s ease both;
+    position: relative; overflow: hidden;
+  }
+  .el-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--el-color, var(--accent));
+  }
+  .el-card:hover {
+    border-color: var(--el-color, var(--accent));
+    transform: translateY(-3px); z-index: 2;
+  }
+  .el-icon {
+    font-size: 28px; margin-bottom: 12px; display: block;
+  }
+  .el-name {
+    font-size: 14px; font-weight: 700;
+    color: var(--el-color, var(--accent));
+    margin-bottom: 6px;
+  }
+  .el-desc {
+    font-size: 12px; color: var(--muted); line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .el-details {
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .el-detail {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 11px; color: #9898b8; line-height: 1.5;
+  }
+  .el-detail::before {
+    content: '→';
+    color: var(--el-color, var(--accent));
+    flex-shrink: 0; font-size: 10px; margin-top: 1px;
+  }
+  /* MUST / NICE TABLE */
+  .priority-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
+    margin-bottom: 50px;
+  }
+  .priority-box {
+    background: var(--card); border: 1px solid var(--border); padding: 24px;
+  }
+  .priority-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .priority-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--text); line-height: 1.5;
+  }
+  .priority-item:last-child { border-bottom: none; }
+  .p-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; flex-shrink: 0; margin-top: 2px;
+    width: 20px;
+  }
+  /* WIREFRAME LAYOUT VISUAL */
+  .wireframe {
+    background: var(--card); border: 1px solid var(--border);
+    padding: 28px; margin-bottom: 4px;
+  }
+  .wf-screen {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--muted);
+  }
+  .wf-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .wf-block {
+    background: var(--border); border: 1px solid #252540;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: var(--muted); letter-spacing: 1px;
+    text-transform: uppercase; padding: 8px;
+  }
+  .wf-nav { height: 36px; flex: 1; }
+  .wf-hero { height: 120px; flex: 1; background: #151528; }
+  .wf-feature { height: 80px; flex: 1; }
+  .wf-cta { height: 50px; flex: 1; background: #1a1a10; border-color: var(--accent); color: var(--accent); }
+  .wf-input { height: 44px; flex: 2; }
+  .wf-dropdown { height: 44px; flex: 1; }
+  .wf-btn { height: 44px; flex: 1; background: #1a1a10; border-color: var(--accent); color: var(--accent); }
+  .wf-video { height: 200px; flex: 2; background: #0a0a18; }
+  .wf-side { height: 200px; flex: 1; }
+  .wf-stat { height: 70px; flex: 1; }
+  .wf-history { height: 100px; flex: 3; }
+  /* PAGE SEPARATOR */
+  .page-sep {
+    margin: 60px 0;
+    border: none; border-top: 1px solid var(--border);
+    position: relative;
+  }
+  .page-sep::after {
+    content: 'PAGE 02';
+    position: absolute; top: -10px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; letter-spacing: 3px; color: var(--muted);
+    padding: 0 16px;
+  }
+  /* OSIN NOTE */
+  .osin-note {
+    background: linear-gradient(135deg, #0a100a, #080f08);
+    border: 1px solid var(--green);
+    padding: 24px; margin-bottom: 50px;
+    animation: fadeUp 0.6s 0.5s ease both;
+  }
+  .osin-note-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 3px; color: var(--green);
+    margin-bottom: 12px;
+  }
+  .osin-note p { font-size: 13px; color: #98c8a8; line-height: 1.8; }
+  .osin-note strong { color: var(--green); }
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-24px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @media (max-width: 700px) {
+    .priority-grid { grid-template-columns: 1fr; }
+    .elements-grid { grid-template-columns: 1fr; }
+    .wf-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">// Osin — UI Spec Document</div>
+    <h1>UI ELEMENTS<br><em>& FEATURES</em></h1>
+    <p>Complete breakdown of every element needed on the Landing Page and Dashboard. Send this to Osin.</p>
+  </div>
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 1 — LANDING PAGE -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page-label">
+    <div class="page-title" style="color:var(--blue)">Landing Page</div>
+    <div class="page-badge" style="border-color:var(--blue); color:var(--blue)">Page 01 — Public</div>
+  </div>
+  <div class="page-desc">
+    The first page anyone sees. Goal: explain what the platform does in 10 seconds and push them to click "Get Started". Inspired by Synthesia.io — clean, bold, professional.
+  </div>
+  <!-- WIREFRAME -->
+  <div class="sec">// Layout Wireframe</div>
+  <div class="wireframe" style="margin-bottom:28px">
+    <div class="wf-screen">
+      <div class="wf-row">
+        <div class="wf-block wf-nav">NAVBAR — Logo · Features · How It Works · Get Started</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-hero">HERO SECTION — Big headline + subtitle + CTA button + avatar preview video</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-feature">FEATURE 1 — Emotion Detection</div>
+        <div class="wf-block wf-feature">FEATURE 2 — Voice Clone</div>
+        <div class="wf-block wf-feature">FEATURE 3 — Multilingual</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-hero" style="height:80px">HOW IT WORKS — 4 step pipeline visual</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-cta">CTA BANNER — "Start Creating Your Avatar" button</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-nav" style="height:44px">FOOTER — Team name · Hackathon · Links</div>
+      </div>
+    </div>
+  </div>
+  <!-- LANDING ELEMENTS -->
+  <div class="sec">// Landing Page Elements</div>
+  <div class="elements-grid">
+    <div class="el-card" style="--el-color: var(--blue); animation-delay:0.05s">
+      <span class="el-icon">🔝</span>
+      <div class="el-name">Navbar</div>
+      <div class="el-desc">Sticky top navigation that stays visible as user scrolls.</div>
+      <div class="el-details">
+        <div class="el-detail">Logo / platform name on left</div>
+        <div class="el-detail">Links: Features, How It Works, Languages</div>
+        <div class="el-detail">"Get Started" button on right — accent colored</div>
+        <div class="el-detail">Transparent on load, dark background on scroll</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--accent); animation-delay:0.1s">
+      <span class="el-icon">🎯</span>
+      <div class="el-name">Hero Section</div>
+      <div class="el-desc">The most important section. Must communicate the product in 3 seconds.</div>
+      <div class="el-details">
+        <div class="el-detail">Big bold headline — "Speak to Millions. In Any Language."</div>
+        <div class="el-detail">Subtitle — 1 sentence explaining what it does</div>
+        <div class="el-detail">Two buttons — "Create Avatar" (primary) + "Watch Demo" (secondary)</div>
+        <div class="el-detail">Background — short looping avatar demo video or animated illustration</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--purple); animation-delay:0.15s">
+      <span class="el-icon">⚡</span>
+      <div class="el-name">Features Section</div>
+      <div class="el-desc">3 cards showing the platform's key capabilities.</div>
+      <div class="el-details">
+        <div class="el-detail">Card 1: Emotion Detection — auto-detects tone from text</div>
+        <div class="el-detail">Card 2: Voice Cloning — sounds exactly like you</div>
+        <div class="el-detail">Card 3: 12 Indian Languages — Hindi, Tamil, Telugu + more</div>
+        <div class="el-detail">Each card has icon, title, and 2-line description</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--green); animation-delay:0.2s">
+      <span class="el-icon">🔢</span>
+      <div class="el-name">How It Works</div>
+      <div class="el-desc">Step-by-step pipeline shown visually — 4 numbered steps with arrows.</div>
+      <div class="el-details">
+        <div class="el-detail">Step 1: Type your message</div>
+        <div class="el-detail">Step 2: Choose language and tone</div>
+        <div class="el-detail">Step 3: AI generates emotional speech</div>
+        <div class="el-detail">Step 4: Avatar video is ready to share</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--pink); animation-delay:0.25s">
+      <span class="el-icon">🌐</span>
+      <div class="el-name">Languages Banner</div>
+      <div class="el-desc">Visual strip showing all supported Indian languages.</div>
+      <div class="el-details">
+        <div class="el-detail">Scrolling marquee strip of language names</div>
+        <div class="el-detail">Hindi · Tamil · Telugu · Marathi · Bengali · Kannada · Gujarati · Punjabi</div>
+        <div class="el-detail">Shows the scale of multilingual support</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--orange); animation-delay:0.3s">
+      <span class="el-icon">📢</span>
+      <div class="el-name">CTA Banner</div>
+      <div class="el-desc">Final push before footer — gets visitors to sign up or try the tool.</div>
+      <div class="el-details">
+        <div class="el-detail">Dark background with accent-colored button</div>
+        <div class="el-detail">Headline: "Ready to create your AI avatar?"</div>
+        <div class="el-detail">Single large button: "Get Started Free"</div>
+      </div>
+    </div>
+  </div>
+  <hr class="page-sep" style="margin-top:60px">
+  <style>.page-sep::after { content: 'PAGE 02'; }</style>
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 2 — DASHBOARD -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page-label" style="margin-top:60px">
+    <div class="page-title" style="color:var(--accent)">Dashboard</div>
+    <div class="page-badge" style="border-color:var(--accent); color:var(--accent)">Page 02 — App</div>
+  </div>
+  <div class="page-desc">
+    The actual working screen. Where the leader types a message, picks language and tone, hits generate, and watches the avatar speak. This is the core of the product.
+  </div>
+  <!-- WIREFRAME -->
+  <div class="sec">// Layout Wireframe</div>
+  <div class="wireframe" style="margin-bottom:28px">
+    <div class="wf-screen">
+      <div class="wf-row">
+        <div class="wf-block wf-nav">TOP BAR — Logo · Language · User avatar</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-stat">Messages Sent</div>
+        <div class="wf-block wf-stat">Languages Used</div>
+        <div class="wf-block wf-stat">Last Tone Used</div>
+        <div class="wf-block wf-stat">Videos Generated</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-video">VIDEO PLAYER — Avatar speaking video renders here</div>
+        <div class="wf-block wf-side">
+          INPUT PANEL
+          Text area
+          Language picker
+          Tone selector
+          Generate button
+        </div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-block wf-history">HISTORY — Previous generated videos list</div>
+        <div class="wf-block wf-stat" style="height:100px">SSML Preview panel</div>
+      </div>
+    </div>
+  </div>
+  <!-- DASHBOARD ELEMENTS -->
+  <div class="sec">// Dashboard Elements</div>
+  <div class="elements-grid">
+    <div class="el-card" style="--el-color: var(--accent); animation-delay:0.05s">
+      <span class="el-icon">✍️</span>
+      <div class="el-name">Message Input Box</div>
+      <div class="el-desc">Where the leader types the message they want the avatar to say.</div>
+      <div class="el-details">
+        <div class="el-detail">Large multiline textarea — min 4 rows</div>
+        <div class="el-detail">Character counter bottom right (max 500 chars)</div>
+        <div class="el-detail">Placeholder: "Type your message here..."</div>
+        <div class="el-detail">Auto-resize as user types</div>
+        <div class="el-detail">Clear button (×) to reset</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--green); animation-delay:0.1s">
+      <span class="el-icon">🌐</span>
+      <div class="el-name">Language Selector</div>
+      <div class="el-desc">Dropdown to pick the output language for the avatar.</div>
+      <div class="el-details">
+        <div class="el-detail">Dropdown with flag emoji + language name</div>
+        <div class="el-detail">Options: English, Hindi, Tamil, Telugu, Marathi, Bengali, Kannada + more</div>
+        <div class="el-detail">Default: English</div>
+        <div class="el-detail">Shows language code next to name (e.g. "Hindi — hi")</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--purple); animation-delay:0.15s">
+      <span class="el-icon">🎭</span>
+      <div class="el-name">Tone Selector</div>
+      <div class="el-desc">Lets user pick emotional tone — or leave on Auto for Soham's AI to decide.</div>
+      <div class="el-details">
+        <div class="el-detail">Segmented button group or dropdown</div>
+        <div class="el-detail">Options: Auto · Urgent · Calm · Inspiring · Formal · Empathetic</div>
+        <div class="el-detail">Default: Auto (AI detects)</div>
+        <div class="el-detail">Each tone has a small color indicator or emoji</div>
+        <div class="el-detail">Selected tone highlights in accent color</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--accent); animation-delay:0.2s">
+      <span class="el-icon">🚀</span>
+      <div class="el-name">Generate Button</div>
+      <div class="el-desc">The main action button that triggers the entire pipeline.</div>
+      <div class="el-details">
+        <div class="el-detail">Large, full-width, accent colored</div>
+        <div class="el-detail">Label: "Generate Avatar Video"</div>
+        <div class="el-detail">Loading state: spinner + "Generating..." text</div>
+        <div class="el-detail">Disabled when text box is empty</div>
+        <div class="el-detail">Shows estimated time: "~15 seconds"</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--blue); animation-delay:0.25s">
+      <span class="el-icon">🎬</span>
+      <div class="el-name">Video Player</div>
+      <div class="el-desc">Where the generated avatar video plays after generation is complete.</div>
+      <div class="el-details">
+        <div class="el-detail">Large 16:9 video player</div>
+        <div class="el-detail">Play / Pause / Mute / Fullscreen controls</div>
+        <div class="el-detail">Placeholder when no video yet: avatar silhouette illustration</div>
+        <div class="el-detail">Download button below player</div>
+        <div class="el-detail">Share button (copy link)</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--orange); animation-delay:0.3s">
+      <span class="el-icon">📊</span>
+      <div class="el-name">Stats Bar</div>
+      <div class="el-desc">4 quick stat cards at the top showing usage at a glance.</div>
+      <div class="el-details">
+        <div class="el-detail">Messages Sent today</div>
+        <div class="el-detail">Languages Used</div>
+        <div class="el-detail">Last Detected Tone</div>
+        <div class="el-detail">Videos Generated total</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--green); animation-delay:0.35s">
+      <span class="el-icon">🔍</span>
+      <div class="el-name">SSML Preview Panel</div>
+      <div class="el-desc">Shows the raw SSML that Soham's engine returned — for transparency and debugging.</div>
+      <div class="el-details">
+        <div class="el-detail">Collapsible panel — hidden by default, expandable</div>
+        <div class="el-detail">Monospace font code block</div>
+        <div class="el-detail">Shows detected tone tag at top</div>
+        <div class="el-detail">Syntax highlighted SSML tags</div>
+        <div class="el-detail">Copy button to copy raw SSML</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--pink); animation-delay:0.4s">
+      <span class="el-icon">🕐</span>
+      <div class="el-name">History Panel</div>
+      <div class="el-desc">List of previously generated videos in this session.</div>
+      <div class="el-details">
+        <div class="el-detail">Each row: message preview + language + tone + timestamp</div>
+        <div class="el-detail">Click a row to replay that video</div>
+        <div class="el-detail">Shows last 5 generations</div>
+        <div class="el-detail">Clear history button</div>
+      </div>
+    </div>
+    <div class="el-card" style="--el-color: var(--muted); animation-delay:0.45s">
+      <span class="el-icon">⏳</span>
+      <div class="el-name">Loading / Progress State</div>
+      <div class="el-desc">Shows pipeline progress while video is generating.</div>
+      <div class="el-details">
+        <div class="el-detail">Step 1: Translating text... ✓</div>
+        <div class="el-detail">Step 2: Detecting emotion... ✓</div>
+        <div class="el-detail">Step 3: Generating voice... ✓</div>
+        <div class="el-detail">Step 4: Rendering avatar video...</div>
+        <div class="el-detail">Each step ticks off as it completes</div>
+      </div>
+    </div>
+  </div>
+  <!-- MUST HAVE vs NICE TO HAVE -->
+  <div class="sec" style="margin-top:50px">// Priority — Must Have vs Nice to Have</div>
+  <div class="priority-grid">
+    <div class="priority-box">
+      <div class="priority-title" style="color:var(--accent)">✅ Must Have — Build These First</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--accent)">01</span>Message text input box</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--accent)">02</span>Language selector dropdown</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--accent)">03</span>Tone selector (Auto + 5 options)</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--accent)">04</span>Generate button with loading state</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--accent)">05</span>Video player to show output</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--accent)">06</span>Pipeline progress steps</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--accent)">07</span>Landing page hero + CTA</div>
+    </div>
+    <div class="priority-box">
+      <div class="priority-title" style="color:var(--muted)">💡 Nice to Have — If Time Allows</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--muted)">01</span>Stats bar with usage numbers</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--muted)">02</span>SSML preview panel</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--muted)">03</span>History panel</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--muted)">04</span>Download / share video button</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--muted)">05</span>Scrolling language banner</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--muted)">06</span>How It Works section</div>
+      <div class="priority-item"><span class="p-num" style="color:var(--muted)">07</span>Dark/light mode toggle</div>
+    </div>
+  </div>
+  <!-- NOTE TO OSIN -->
+  <div class="osin-note">
+    <div class="osin-note-title">// Note to Osin</div>
+    <p>
+      Build the <strong>Dashboard first</strong> — that's the working product. The landing page is just marketing.<br><br>
+      The single most important component is the <strong>Generate button → Video Player flow</strong>. Everything else is secondary.<br><br>
+      Connect to Shreeja's backend at <strong>POST http://localhost:8000/generate-video</strong> with body:
+      <code style="background:#0a0a0a; padding:2px 8px; color:var(--green)">{ "text": "...", "tone_override": null, "target_language": "hi" }</code><br><br>
+      You get back a <strong>video_url</strong> — just set that as the src of your video player. Done.
+    </p>
+  </div>
+</div>
+</body>
+</html>
