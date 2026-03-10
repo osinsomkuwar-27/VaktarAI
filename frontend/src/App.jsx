@@ -1,58 +1,39 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Routes, Route, Routes as Switch, Navigate, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import Navbar from './components/Navbar';
-import Toast from './components/Toast';
-import LoginPage from './pages/LoginPage';
-import CreatePage from './pages/CreatePage';
-import FeaturesPage from './pages/FeaturesPage';
-import HistoryPage from './pages/HistoryPage';
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useCallback } from 'react'
+import Navbar from './components/Navbar'
+import Toast from './components/Toast'
+import CreatePage   from './pages/CreatePage'
+import FeaturesPage from './pages/FeaturesPage'
+import HistoryPage  from './pages/HistoryPage'
+import LoginPage    from './components/LoginPage'
 
-const AppContent = () => {
-const location = useLocation();
-const [toast, setToast] = useState(null);
+export default function App() {
+  const [toasts, setToasts] = useState([])
 
-const showToast = (message, type = 'success') => {
-setToast({ message, type });
-};
+  const addToast = useCallback((message, type = 'info') => {
+    const id = Date.now() + Math.random()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000)
+  }, [])
 
-return (
-<div className="min-h-screen bg-[#050816] text-white selection:bg-violet-500/30">
-<Navbar />
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
 
-  <AnimatePresence mode="wait">
-    <Switch location={location} key={location.pathname}>
-      <Route path="/login" element={<LoginPage showToast={showToast} />} />
-      <Route path="/create" element={<CreatePage showToast={showToast} />} />
-      <Route path="/features" element={<FeaturesPage showToast={showToast} />} />
-      <Route path="/history" element={<HistoryPage showToast={showToast} />} />
-      <Route path="/" element={<Navigate to="/login" replace />} />
-    </Switch>
-  </AnimatePresence>
-
-  <AnimatePresence>
-    {toast && (
-      <Toast 
-        message={toast.message} 
-        type={toast.type} 
-        onClose={() => setToast(null)} 
-      />
-    )}
-  </AnimatePresence>
-
-  {/* Background Animated Orbs */}
-  <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
-    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full animate-pulse" />
-    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
-  </div>
-</div>
-);
-};
-
-const App = () => (
-<Routes>
-<AppContent />
-</Routes>
-);
-
-export default App;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Navbar />
+      <main style={{ flex: 1 }}>
+        <Routes>
+          <Route path="/"         element={<Navigate to="/create" replace />} />
+          <Route path="/create"   element={<CreatePage   addToast={addToast} />} />
+          <Route path="/features" element={<FeaturesPage addToast={addToast} />} />
+          <Route path="/history"  element={<HistoryPage  addToast={addToast} />} />
+          <Route path="/login"    element={<LoginPage    addToast={addToast} />} />
+          <Route path="*"         element={<Navigate to="/create" replace />} />
+        </Routes>
+      </main>
+      <Toast toasts={toasts} removeToast={removeToast} />
+    </div>
+  )
+}

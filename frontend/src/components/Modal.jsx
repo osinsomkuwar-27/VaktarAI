@@ -1,69 +1,90 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Calendar } from 'lucide-react';
+import { useEffect } from 'react'
 
-const Modal = ({ isOpen, onClose, data }) => {
-if (!data) return null;
+export default function Modal({ isOpen, onClose, title, children }) {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handleKey)
+      document.body.style.overflow = ''
+    }
+  }, [isOpen, onClose])
 
-return (
-<AnimatePresence>
-{isOpen && (
-<div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-<motion.div
-initial={{ opacity: 0 }}
-animate={{ opacity: 1 }}
-exit={{ opacity: 0 }}
-onClick={onClose}
-className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-/>
-<motion.div
-initial={{ opacity: 0, scale: 0.9, y: 20 }}
-animate={{ opacity: 1, scale: 1, y: 0 }}
-exit={{ opacity: 0, scale: 0.9, y: 20 }}
-className="relative w-full max-w-2xl glass-card rounded-2xl overflow-hidden shadow-2xl"
->
-<button
-onClick={onClose}
-className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-white/10 rounded-full transition-colors"
->
-<X size={20} />
-</button>
+  if (!isOpen) return null
 
-        <div className="flex flex-col md:flex-row">
-          <div className="w-full md:w-1/2 aspect-square">
-            <img src={data.img} alt="Avatar" className="w-full h-full object-cover" />
-          </div>
-          <div className="w-full md:w-1/2 p-8 flex flex-col justify-between">
-            <div>
-              <h3 className="font-orbitron text-2xl font-bold mb-2">Avatar Preview</h3>
-              <div className="flex items-center gap-2 text-slate-400 mb-6">
-                <Calendar size={14} />
-                <span className="text-sm">{data.date}</span>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="p-3 bg-white/5 rounded-lg border border-white/5">
-                  <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Style</p>
-                  <p className="text-sm text-cyan-400">{data.style}</p>
-                </div>
-                <div className="p-3 bg-white/5 rounded-lg border border-white/5">
-                  <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Status</p>
-                  <p className="text-sm text-green-400">High Definition Ready</p>
-                </div>
-              </div>
-            </div>
-
-            <button className="btn-gradient w-full py-3 rounded-xl flex items-center justify-center gap-2 mt-8 font-bold">
-              <Download size={18} />
-              DOWNLOAD 4K
-            </button>
-          </div>
+  return (
+    <div style={styles.overlay} onClick={onClose}>
+      <div
+        style={styles.modal}
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div style={styles.header}>
+          <h2 style={styles.title}>{title}</h2>
+          <button style={styles.closeBtn} onClick={onClose} aria-label="Close modal">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
-      </motion.div>
+        <div style={styles.body}>{children}</div>
+      </div>
     </div>
-  )}
-</AnimatePresence>
-);
-};
+  )
+}
 
-export default Modal;
+const styles = {
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.7)',
+    backdropFilter: 'blur(8px)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    animation: 'fadeInFast 0.2s ease both',
+  },
+  modal: {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border)',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 520,
+    boxShadow: 'var(--shadow-lg)',
+    animation: 'fadeIn 0.3s cubic-bezier(0.34,1.3,0.64,1) both',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 24px',
+    borderBottom: '1px solid var(--border)',
+  },
+  title: {
+    fontFamily: 'var(--font-display)',
+    fontSize: 18,
+    fontWeight: 700,
+    color: 'var(--text-primary)',
+    letterSpacing: '-0.02em',
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: 'var(--text-muted)',
+    padding: 6,
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'color 0.2s',
+  },
+  body: {
+    padding: '24px',
+  },
+}

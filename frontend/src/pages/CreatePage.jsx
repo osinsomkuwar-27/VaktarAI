@@ -1,223 +1,820 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Wand2, RotateCw, ZoomIn, RefreshCcw, Download, Sparkles, History as HistoryIcon } from 'lucide-react';
-import LoadingBar from '../components/LoadingBar';
-import { mockCreations } from '../data/mockData';
+import { useState, useRef, useCallback } from 'react'
+// import { generateAvatar } from '../api'
 
-const CreatePage = ({ showToast }) => {
-const [isGenerating, setIsGenerating] = useState(false);
-const [progress, setProgress] = useState(0);
-const [status, setStatus] = useState("Ready");
-const [previewAvatar, setPreviewAvatar] = useState(null);
-const [rotation, setRotation] = useState(0);
-const [isZoomed, setIsZoomed] = useState(false);
+const STYLES      = ['Realistic', 'Anime', 'Cartoon']
+const GENDERS     = ['Male', 'Female', 'Custom']
+const OUTFITS     = ['Casual', 'Professional', 'Cyber']
+const HAIR_COLORS = ['Black', 'Brown', 'Blonde', 'Red', 'White', 'Blue']
+const ACCEPTED    = ['image/jpeg', 'image/png', 'image/webp']
 
-// Form State
-const [style, setStyle] = useState('Realistic');
-const [gender, setGender] = useState('Male');
-const [trait, setTrait] = useState('Young');
-const [outfit, setOutfit] = useState('Casual');
-const [prompt, setPrompt] = useState('');
+const RECENT = [
+  { date: '2024-10-23' },
+  { date: '2024-10-17' },
+  { date: '2024-10-20' },
+  { date: '2024-10-24' },
+]
 
-const handleGenerate = () => {
-if (isGenerating) return;
-setIsGenerating(true);
-setPreviewAvatar(null);
-setProgress(0);
-
-const statuses = [
-  { p: 10, s: "Initializing..." },
-  { p: 40, s: "Generating face..." },
-  { p: 70, s: "Applying style..." },
-  { p: 90, s: "Finalizing..." },
-  { p: 100, s: "Done!" }
-];
-
-statuses.forEach((step, index) => {
-  setTimeout(() => {
-    setProgress(step.p);
-    setStatus(step.s);
-    if (step.p === 100) {
-      setTimeout(() => {
-        setPreviewAvatar(`https://picsum.photos/seed/${Math.random()}/600/600`);
-        setIsGenerating(false);
-        showToast("Avatar generated successfully!");
-      }, 500);
-    }
-  }, (index + 1) * 600);
-});
-};
-
-const ToggleGroup = ({ label, options, activeValue, onChange }) => (
-<div className="mb-6">
-<label className="text-[10px] font-orbitron tracking-[0.2em] text-slate-500 mb-3 block uppercase">{label}</label>
-<div className="flex flex-wrap gap-2">
-{options.map((opt) => (
-<button
-key={opt}
-onClick={() => onChange(opt)}
-className={`px-4 py-2 rounded-xl text-xs font-medium transition-all duration-300 border ${activeValue === opt  ? 'bg-violet-600 border-violet-400 text-white shadow-[0_0_15px_rgba(124,58,237,0.3)]'  : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'}`}
->
-{opt}
-</button>
-))}
-</div>
-</div>
-);
-
-return (
-<motion.div
-initial={{ opacity: 0 }}
-animate={{ opacity: 1 }}
-exit={{ opacity: 0 }}
-className="pt-24 pb-12 px-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-full min-h-[calc(100vh-100px)]"
->
-{/* Left Panel - Controls */}
-<div className="lg:col-span-3 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
-<div className="glass-card p-6 rounded-3xl">
-<ToggleGroup label="Style" options={['Realistic', 'Anime', 'Cartoon']} activeValue={style} onChange={setStyle} />
-<ToggleGroup label="Gender" options={['Male', 'Female', 'Non-binary']} activeValue={gender} onChange={setGender} />
-<ToggleGroup label="Traits" options={['Young', 'Middle', 'Senior']} activeValue={trait} onChange={setTrait} />
-<ToggleGroup label="Outfit" options={['Casual', 'Formal', 'Fantasy', 'Sci-Fi']} activeValue={outfit} onChange={setOutfit} />
-
-      <div className="mb-8">
-        <div className="flex justify-between items-end mb-3">
-          <label className="text-[10px] font-orbitron tracking-[0.2em] text-slate-500 uppercase">Prompt</label>
-          <span className={`text-[10px] ${prompt.length > 180 ? 'text-red-400' : 'text-slate-500'}`}>{prompt.length}/200</span>
-        </div>
-        <textarea 
-          maxLength={200}
-          placeholder="Describe your Avatar..."
-          className="w-full h-32 p-4 rounded-2xl input-field text-sm resize-none"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+/* ── Slider ── */
+function Slider({ label, value, onChange }) {
+  return (
+    <div style={sl.row}>
+      <span style={sl.label}>{label}</span>
+      <div style={sl.track}>
+        <div style={{ ...sl.fill, width: `${value}%` }} />
+        <input
+          type="range" min={0} max={100} value={value}
+          onChange={e => onChange(Number(e.target.value))}
+          style={sl.input}
         />
       </div>
+      <span style={sl.val}>{value}</span>
+    </div>
+  )
+}
 
-      <button 
-        onClick={handleGenerate}
-        disabled={isGenerating}
-        className="btn-gradient w-full py-4 rounded-full font-orbitron text-xs font-bold tracking-widest flex items-center justify-center gap-2 overflow-hidden relative"
-      >
-        <AnimatePresence mode="wait">
-          {isGenerating ? (
-            <motion.div 
-              key="loading" 
-              initial={{ y: 20 }} animate={{ y: 0 }} exit={{ y: -20 }}
-              className="flex items-center gap-2"
-            >
-              <RefreshCcw className="animate-spin" size={16} />
-              GENERATING...
-            </motion.div>
+/* ── Chip group ── */
+function ChipGroup({ options, value, onChange }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {options.map(o => (
+        <button
+          key={o}
+          onClick={() => onChange(o)}
+          style={{ ...chip.base, ...(value === o ? chip.active : chip.idle) }}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export default function CreatePage({ addToast }) {
+  /* ── Photo upload state ── */
+  const [image,        setImage]        = useState(null)   // File
+  const [imagePreview, setImagePreview] = useState(null)   // DataURL
+  const [dragOver,     setDragOver]     = useState(false)
+  const fileInputRef = useRef(null)
+
+  /* ── Avatar config state ── */
+  const [style,     setStyle]     = useState('Realistic')
+  const [gender,    setGender]    = useState('Male')
+  const [hairColor, setHairColor] = useState('Black')
+  const [outfit,    setOutfit]    = useState('Casual')
+  const [prompt,    setPrompt]    = useState('')
+  const [eyes,      setEyes]      = useState(50)
+  const [nose,      setNose]      = useState(60)
+  const [mouth,     setMouth]     = useState(45)
+
+  /* ── Preview / result state ── */
+  const [zoom,      setZoom]      = useState(100)
+  const [rotation,  setRotation]  = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [videoUrl,  setVideoUrl]  = useState(null)
+  const [recent,    setRecent]    = useState(RECENT)
+  const [genProgress, setGenProgress] = useState(0)
+
+  /* ── File handling ── */
+  const handleFile = useCallback((file) => {
+    if (!file) return
+    if (!ACCEPTED.includes(file.type)) {
+      addToast('Please upload a JPG, PNG, or WebP image.', 'error'); return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image must be under 10 MB.', 'error'); return
+    }
+    setImage(file)
+    const reader = new FileReader()
+    reader.onload = (e) => setImagePreview(e.target.result)
+    reader.readAsDataURL(file)
+  }, [addToast])
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault(); setDragOver(false)
+    handleFile(e.dataTransfer.files?.[0])
+  }, [handleFile])
+
+  const clearImage = () => {
+    setImage(null); setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  /* ── Generate ── */
+  const handleGenerate = async () => {
+    if (!image) { addToast('Please upload a portrait photo first.', 'warning'); return }
+    if (!prompt.trim()) { addToast('Please describe your avatar.', 'warning'); return }
+
+    setIsLoading(true); setGenProgress(0)
+    let interval
+
+    try {
+      const data = await generateAvatar(image, prompt, (pct) => {
+        setGenProgress(Math.round(pct * 0.25))
+      })
+
+      let sim = 25
+      interval = setInterval(() => {
+        sim += Math.random() * 3
+        if (sim >= 98) { sim = 98; clearInterval(interval) }
+        setGenProgress(Math.round(sim))
+      }, 500)
+
+      if (!data?.video_url) throw new Error('No video returned.')
+      clearInterval(interval); setGenProgress(100)
+
+      setTimeout(() => {
+        setVideoUrl(data.video_url)
+        setIsLoading(false)
+        setRecent(prev => [{ date: new Date().toISOString().slice(0,10), preview: imagePreview }, ...prev].slice(0,8))
+        addToast('Avatar generated!', 'success')
+      }, 400)
+    } catch (err) {
+      clearInterval(interval)
+      setIsLoading(false)
+      addToast(err?.response?.data?.detail || err?.message || 'Generation failed.', 'error')
+    }
+  }
+
+  /* ─────────── RENDER ─────────── */
+  return (
+    <div style={s.page}>
+      <style>{`
+        @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmerLoad { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        @keyframes spin360 { to{transform:rotate(360deg)} }
+        @keyframes progressFill { from{width:0%} to{width:100%} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .chip-btn:hover  { border-color:rgba(79,142,255,0.6)!important; color:#c4d4ff!important; }
+        .ctrl-btn:hover  { background:rgba(79,142,255,0.12)!important; border-color:rgba(79,142,255,0.4)!important; }
+        .gen-btn:hover:not(:disabled) { box-shadow:0 6px 32px rgba(79,142,255,0.5)!important; transform:translateY(-1px)!important; }
+        .recent-card:hover { border-color:rgba(79,142,255,0.4)!important; transform:translateY(-3px)!important; }
+        .drop-zone:hover { border-color:rgba(79,142,255,0.7)!important; background:rgba(79,142,255,0.1)!important; transform:scale(1.01); }
+        .upload-preview-wrap:hover .preview-overlay { opacity:1!important; }
+        textarea:focus { border-color:rgba(79,142,255,0.5)!important; outline:none; box-shadow:0 0 0 3px rgba(79,142,255,0.08)!important; }
+        input[type=range] { -webkit-appearance:none; appearance:none; background:transparent; cursor:pointer; width:100%; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#4f8eff; box-shadow:0 0 8px rgba(79,142,255,0.6); margin-top:-5px; }
+        input[type=range]::-webkit-slider-runnable-track { height:4px; background:transparent; }
+      `}</style>
+
+      {/* ══════════════════ LEFT PANEL ══════════════════ */}
+      <aside style={s.leftPanel}>
+
+        {/* ─── SECTION: Upload Photo ─── */}
+        <div style={s.section}>
+          <p style={s.sectionLabel}>
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{marginRight:6}}>
+              <circle cx="6" cy="6" r="5" stroke="#4f8eff" strokeWidth="1.2"/>
+              <path d="M6 3v4M4 5l2-2 2 2" stroke="#4f8eff" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            PORTRAIT PHOTO
+          </p>
+
+          {imagePreview ? (
+            /* Preview state */
+            <div className="upload-preview-wrap" style={s.uploadPreviewWrap}>
+              <div style={s.uploadPreviewImg}>
+                <img src={imagePreview} alt="Portrait" style={s.previewPhoto} />
+                {/* Overlay with change / remove */}
+                <div className="preview-overlay" style={s.previewOverlay}>
+                  <button style={s.previewOverlayBtn} onClick={() => fileInputRef.current?.click()}>
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 14h12M9.5 3.5l3 3L5 14H2v-3L9.5 3.5zM11 2l3 3" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Change
+                  </button>
+                  <button style={{ ...s.previewOverlayBtn, background:'rgba(248,113,113,0.25)', borderColor:'rgba(248,113,113,0.4)' }} onClick={clearImage}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 2l8 8M10 2l-8 8" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+                    </svg>
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <div style={s.previewMeta}>
+                <div style={s.previewCheck}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <circle cx="6" cy="6" r="5" fill="rgba(16,217,160,0.2)" stroke="#10d9a0" strokeWidth="1.2"/>
+                    <path d="M3.5 6l1.8 1.8 3.2-3.2" stroke="#10d9a0" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span style={{ fontSize:11, color:'#10d9a0', fontWeight:600 }}>Photo ready</span>
+                </div>
+                <p style={{ fontSize:10, color:'var(--text-muted)', marginTop:2 }}>{image?.name}</p>
+                <p style={{ fontSize:10, color:'var(--text-muted)' }}>{image ? (image.size / 1024).toFixed(0) + ' KB' : ''}</p>
+              </div>
+            </div>
           ) : (
-            <motion.div 
-              key="idle" 
-              initial={{ y: 20 }} animate={{ y: 0 }} exit={{ y: -20 }}
-              className="flex items-center gap-2"
+            /* Drop zone state */
+            <div
+              className="drop-zone"
+              style={{ ...s.dropzone, ...(dragOver ? s.dropzoneActive : {}) }}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
             >
-              <Wand2 size={16} />
-              GENERATE
-            </motion.div>
+              <div style={s.dropIconWrap}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="4" stroke="#4f8eff" strokeWidth="1.5"/>
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#4f8eff" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="19" cy="5" r="3" fill="rgba(79,142,255,0.15)" stroke="#4f8eff" strokeWidth="1.2" strokeDasharray="2 1.5"/>
+                  <path d="M19 3.5v3M17.5 5h3" stroke="#4f8eff" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <p style={s.dropMain}><strong>Click or drag</strong> to upload</p>
+              <p style={s.dropSub}>JPG · PNG · WebP — max 10 MB</p>
+              <p style={s.dropHint}>Front-facing portrait gives best results</p>
+            </div>
           )}
-        </AnimatePresence>
-        {isGenerating && (
-          <motion.div 
-            className="absolute inset-0 bg-white/10"
-            animate={{ x: ['-100%', '100%'] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: 'none' }}
+            onChange={(e) => handleFile(e.target.files?.[0])}
           />
-        )}
-      </button>
-    </div>
-  </div>
+        </div>
 
-  {/* Center Panel - Preview */}
-  <div className="lg:col-span-9 flex flex-col gap-6">
-    <div className="glass-card flex-grow rounded-3xl relative overflow-hidden flex flex-col items-center justify-center p-8 min-h-[500px]">
-      {/* Dashboard UI elements */}
-      <div className="absolute top-6 left-6 flex items-center gap-2 text-[10px] font-orbitron text-cyan-400/50 uppercase tracking-widest">
-        <Sparkles size={12} /> Live Preview System v2.0
-      </div>
-      
-      <AnimatePresence mode="wait">
-        {!previewAvatar && !isGenerating ? (
-          <motion.div 
-            key="placeholder"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4 text-slate-600 border-2 border-dashed border-white/5 rounded-3xl p-20 w-full h-full justify-center"
-          >
-            <div className="p-6 rounded-full bg-white/5">
-              <Wand2 size={48} />
+        <div style={s.divider} />
+
+        {/* ─── SECTION: Style ─── */}
+        <div style={s.section}>
+          <p style={s.sectionLabel}>STYLE</p>
+          <ChipGroup options={STYLES} value={style} onChange={setStyle} />
+        </div>
+
+        <div style={s.divider} />
+
+        {/* ─── SECTION: Gender ─── */}
+        <div style={s.section}>
+          <p style={s.sectionLabel}>GENDER</p>
+          <ChipGroup options={GENDERS} value={gender} onChange={setGender} />
+        </div>
+
+        <div style={s.divider} />
+
+        {/* ─── SECTION: Traits ─── */}
+        <div style={s.section}>
+          <p style={s.sectionLabel}>TRAITS</p>
+          {/* Hair color */}
+          <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+            <div style={s.hairSelect}>
+              <span style={s.hairDot(hairColor)} />
+              <select value={hairColor} onChange={e => setHairColor(e.target.value)} style={s.select}>
+                {HAIR_COLORS.map(c => <option key={c}>{c}</option>)}
+              </select>
             </div>
-            <p className="font-orbitron tracking-widest text-sm">Your Avatar Will Appear Here</p>
-          </motion.div>
-        ) : isGenerating ? (
-          <motion.div key="loading-state" className="w-full max-w-md px-8 text-center">
-            <LoadingBar progress={progress} status={status} />
-          </motion.div>
-        ) : (
-          <motion.div 
-            key="avatar-image"
-            initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
-            animate={{ 
-              opacity: 1, 
-              scale: isZoomed ? 1.2 : 1, 
-              filter: 'blur(0px)',
-              rotate: rotation 
-            }}
-            className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 w-full max-w-sm aspect-square"
-          >
-            <img src={previewAvatar} alt="Generated Avatar" className="w-full h-full object-cover" />
-          </motion.div>
+            <div style={s.colorSwatch(hairColor)} title={hairColor} />
+          </div>
+          {/* Sliders */}
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <Slider label="Eyes"  value={eyes}  onChange={setEyes}  />
+            <Slider label="Nose"  value={nose}  onChange={setNose}  />
+            <Slider label="Mouth" value={mouth} onChange={setMouth} />
+          </div>
+        </div>
+
+        <div style={s.divider} />
+
+        {/* ─── SECTION: Outfits ─── */}
+        <div style={s.section}>
+          <p style={s.sectionLabel}>OUTFITS</p>
+          <ChipGroup options={OUTFITS} value={outfit} onChange={setOutfit} />
+        </div>
+
+        <div style={s.divider} />
+
+        {/* ─── SECTION: Prompt ─── */}
+        <div style={s.section}>
+          <p style={s.sectionLabel}>PROMPT</p>
+          <textarea
+            style={s.textarea}
+            rows={3}
+            placeholder="Describe your Avatar…"
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+          />
+        </div>
+
+        {/* ─── GENERATE BUTTON ─── */}
+        <button
+          className="gen-btn"
+          style={{
+            ...s.genBtn,
+            opacity: isLoading ? 0.7 : 1,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+          }}
+          onClick={handleGenerate}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'spin360 0.7s linear infinite', display:'inline-block' }} />
+              Generating…
+            </span>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+                <path d="M9 1l1.9 5.7L17 9l-6.1 2.3L9 17l-1.9-5.7L1 9l6.1-2.3L9 1z" fill="white"/>
+              </svg>
+              GENERATE AVATAR
+            </>
+          )}
+        </button>
+
+        {/* Upload required hint */}
+        {!image && (
+          <p style={s.uploadHint}>
+            ↑ Upload a portrait photo to enable generation
+          </p>
         )}
-      </AnimatePresence>
 
-      {/* Action Row */}
-      <div className="mt-12 flex flex-wrap justify-center gap-4">
-        {[
-          { icon: RotateCw, label: 'ROTATE', action: () => setRotation(r => r + 90) },
-          { icon: ZoomIn, label: 'ZOOM', action: () => setIsZoomed(!isZoomed) },
-          { icon: RefreshCcw, label: 'RESET', action: () => { setRotation(0); setIsZoomed(false); } },
-          { icon: Download, label: 'DOWNLOAD', action: () => showToast("Preparing download...") }
-        ].map((btn) => (
-          <button 
-            key={btn.label}
-            onClick={btn.action}
-            disabled={!previewAvatar}
-            className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-white/10 text-[10px] font-orbitron tracking-widest hover:bg-violet-600/20 hover:border-violet-500/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <btn.icon size={14} />
-            {btn.label}
-          </button>
-        ))}
-      </div>
-    </div>
+      </aside>
 
-    {/* Bottom Strip - Recent */}
-    <div className="glass-card p-6 rounded-3xl">
-      <div className="flex items-center gap-2 mb-4">
-        <HistoryIcon size={14} className="text-slate-500" />
-        <h3 className="text-[10px] font-orbitron tracking-widest text-slate-500 uppercase">Recent Creations</h3>
-      </div>
-      <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
-        {mockCreations.slice(0, 5).map((item, idx) => (
-          <motion.div
-            key={item.id}
-            whileHover={{ y: -5 }}
-            onClick={() => setPreviewAvatar(item.img)}
-            className="flex-shrink-0 w-32 cursor-pointer group"
-          >
-            <div className="aspect-square rounded-xl overflow-hidden border border-white/5 group-hover:border-violet-500/50 transition-colors mb-2">
-              <img src={item.img} alt="Creation" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+      {/* ══════════════════ RIGHT PANEL ══════════════════ */}
+      <div style={s.rightPanel}>
+
+        {/* Avatar preview */}
+        <div style={s.previewBox}>
+          {isLoading ? (
+            /* Loading state */
+            <div style={s.loadingState}>
+              <div style={s.loaderOrb} />
+              <p style={s.loadingLabel}>Synthesizing avatar…</p>
+              <div style={s.progressTrack}>
+                <div style={{ ...s.progressFill, width:`${genProgress}%` }} />
+              </div>
+              <p style={s.progressPct}>{genProgress}%</p>
             </div>
-            <p className="text-[9px] text-center text-slate-500 font-medium">{item.date}</p>
-          </motion.div>
-        ))}
+          ) : videoUrl ? (
+            /* Video result */
+            <video
+              src={videoUrl}
+              style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:16 }}
+              controls autoPlay loop
+            />
+          ) : imagePreview ? (
+            /* Photo preview in canvas */
+            <div style={s.canvasPreview}>
+              <img
+                src={imagePreview}
+                alt="Avatar preview"
+                style={{
+                  width:'100%', height:'100%',
+                  objectFit:'cover', objectPosition:'center top',
+                  borderRadius:16,
+                  filter:`brightness(0.9) contrast(1.05)`,
+                  transform:`rotate(${rotation}deg) scale(${zoom/100})`,
+                  transition:'transform 0.3s ease',
+                }}
+              />
+              <div style={s.canvasBadge}>
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <circle cx="6" cy="6" r="5" stroke="#fbbf24" strokeWidth="1.2"/>
+                  <path d="M6 3v4" stroke="#fbbf24" strokeWidth="1.2" strokeLinecap="round"/>
+                  <circle cx="6" cy="9.5" r="0.6" fill="#fbbf24"/>
+                </svg>
+                Portrait loaded · Click Generate
+              </div>
+            </div>
+          ) : (
+            /* Empty state */
+            <div style={s.emptyPreview}>
+              <div style={s.emptyIconWrap}>
+                <svg width="48" height="58" viewBox="0 0 100 120" fill="none" style={{ opacity:0.2 }}>
+                  <ellipse cx="50" cy="38" rx="28" ry="32" stroke="#4f8eff" strokeWidth="1.5" />
+                  <path d="M10 110c0-22 18-38 40-38s40 16 40 38" stroke="#4f8eff" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <p style={s.emptyLabel}>AVATAR PREVIEW</p>
+              <p style={s.emptyHint}>Upload a portrait photo and click Generate</p>
+              <div style={s.gridOverlay} />
+            </div>
+          )}
+
+          {/* Zoom badge */}
+          <div style={s.zoomBadge}>{zoom}%</div>
+        </div>
+
+        {/* Control buttons */}
+        <div style={s.ctrlRow}>
+          {[
+            { label:'ROTATE',   icon:'↻', action:() => setRotation(r => (r+90)%360) },
+            { label:'ZOOM IN',  icon:'+', action:() => setZoom(z => Math.min(z+10,200)) },
+            { label:'ZOOM OUT', icon:'−', action:() => setZoom(z => Math.max(z-10,50)) },
+            { label:'RESET',    icon:'⟳', action:() => { setZoom(100); setRotation(0) } },
+            { label:'DOWNLOAD', icon:'↓', action:() => {
+              if (videoUrl) {
+                const a = document.createElement('a'); a.href = videoUrl
+                a.download = 'avatar.mp4'; a.click()
+              } else if (imagePreview) {
+                const a = document.createElement('a'); a.href = imagePreview
+                a.download = 'avatar.png'; a.click()
+              } else {
+                addToast('Nothing to download yet.', 'info')
+              }
+            }},
+          ].map(btn => (
+            <button key={btn.label} className="ctrl-btn" style={s.ctrlBtn} onClick={btn.action}>
+              <span style={s.ctrlIcon}>{btn.icon}</span>
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Recent Creations */}
+        <div style={s.recentSection}>
+          <div style={s.recentHeader}>
+            <p style={s.recentTitle}>RECENT CREATIONS</p>
+            <span style={s.recentCount}>{recent.length} avatars</span>
+          </div>
+          <div style={s.recentGrid}>
+            {recent.map((item, i) => (
+              <div key={i} className="recent-card"
+                style={{ ...s.recentCard, animationDelay:`${i*0.06}s` }}>
+                <div style={s.recentThumb}>
+                  {item.preview
+                    ? <img src={item.preview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', objectPosition:'center top', borderRadius:10 }}/>
+                    : <>
+                        <div style={s.thumbShimmer}/>
+                        <svg width="20" height="24" viewBox="0 0 100 120" fill="none" style={{ position:'absolute', opacity:0.2 }}>
+                          <ellipse cx="50" cy="38" rx="28" ry="32" stroke="#4f8eff" strokeWidth="2"/>
+                          <path d="M10 110c0-22 18-38 40-38s40 16 40 38" stroke="#4f8eff" strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
+                      </>
+                  }
+                </div>
+                <span style={s.recentDate}>{item.date}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
-  </div>
-</motion.div>
-);
-};
+  )
+}
 
-export default CreatePage;
+/* ──────────────────────── Styles ──────────────────────── */
+const s = {
+  page: {
+    maxWidth: 1200, margin: '0 auto',
+    padding: '36px 28px 60px',
+    display: 'grid',
+    gridTemplateColumns: '310px 1fr',
+    gap: 24,
+    alignItems: 'start',
+    animation: 'fadeUp 0.5s ease both',
+    animation: 'fadeUp 0.5s ease both',
+  },
+
+  /* Left panel */
+  leftPanel: {
+    background: 'rgba(17,24,39,0.9)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 20, padding: '20px 18px',
+    display: 'flex', flexDirection: 'column', gap: 0,
+    backdropFilter: 'blur(16px)',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+    position: 'sticky', top: 80,
+    maxHeight: 'calc(100vh - 100px)',
+    overflowY: 'auto',
+    scrollbarWidth: 'none',
+  },
+  section: { padding: '12px 0' },
+  sectionLabel: {
+    fontFamily: 'var(--font-display)',
+    fontSize: 10, fontWeight: 800,
+    letterSpacing: '0.12em',
+    color: 'var(--text-muted)',
+    marginBottom: 10,
+    display: 'flex', alignItems: 'center',
+  },
+  divider: { height: 1, background: 'rgba(255,255,255,0.05)', margin: '0 -4px' },
+
+  /* ── Photo upload ── */
+  dropzone: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    justifyContent: 'center', gap: 8,
+    padding: '22px 14px',
+    border: '2px dashed rgba(79,142,255,0.4)',
+    borderRadius: 14,
+    background: 'linear-gradient(135deg, rgba(79,142,255,0.06), rgba(167,139,250,0.04))',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s, background 0.2s, transform 0.2s',
+    textAlign: 'center',
+    boxShadow: 'inset 0 0 20px rgba(79,142,255,0.04)',
+  },
+  dropzoneActive: {
+    borderColor: 'rgba(79,142,255,0.6)',
+    background: 'rgba(79,142,255,0.08)',
+  },
+  dropIconWrap: {
+    width: 48, height: 48,
+    background: 'rgba(79,142,255,0.1)',
+    borderRadius: 12,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
+  },
+  dropMain: {
+    fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)',
+  },
+  dropSub: { fontSize: 10, color: 'var(--text-muted)' },
+  dropHint: {
+    fontSize: 9, color: 'var(--text-muted)',
+    background: 'rgba(79,142,255,0.06)',
+    border: '1px solid rgba(79,142,255,0.15)',
+    borderRadius: 100, padding: '2px 10px',
+    marginTop: 2,
+  },
+
+  /* Uploaded photo preview (in left panel) */
+  uploadPreviewWrap: {
+    display: 'flex', gap: 10, alignItems: 'flex-start',
+    padding: '10px',
+    background: 'rgba(79,142,255,0.04)',
+    border: '1px solid rgba(79,142,255,0.12)',
+    borderRadius: 12,
+  },
+  uploadPreviewImg: {
+    position: 'relative',
+    width: 64, height: 80,
+    borderRadius: 10, overflow: 'hidden',
+    flexShrink: 0,
+    border: '1px solid rgba(79,142,255,0.2)',
+  },
+  previewPhoto: {
+    width: '100%', height: '100%',
+    objectFit: 'cover', objectPosition: 'center top',
+    display: 'block',
+  },
+  previewOverlay: {
+    position: 'absolute', inset: 0,
+    background: 'rgba(0,0,0,0.55)',
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center',
+    gap: 5, opacity: 0, transition: 'opacity 0.2s',
+    borderRadius: 10,
+    // Always visible on mobile, hover on desktop via CSS
+  },
+  previewOverlayBtn: {
+    display: 'flex', alignItems: 'center', gap: 4,
+    padding: '3px 8px',
+    background: 'rgba(79,142,255,0.3)',
+    border: '1px solid rgba(79,142,255,0.5)',
+    borderRadius: 6,
+    color: 'white', fontSize: 9, fontWeight: 700,
+    cursor: 'pointer', letterSpacing: '0.03em',
+    fontFamily: 'var(--font-display)',
+  },
+  previewMeta: {
+    flex: 1, display: 'flex', flexDirection: 'column', gap: 2,
+  },
+  previewCheck: {
+    display: 'flex', alignItems: 'center', gap: 5,
+  },
+
+  /* Traits */
+  hairSelect: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 8, padding: '6px 10px', flex: 1,
+  },
+  hairDot: (color) => {
+    const map = { Black:'#1a1a2e', Brown:'#8B4513', Blonde:'#F5DEB3', Red:'#c0392b', White:'#f0f0f0', Blue:'#4f8eff' }
+    return { width:10, height:10, borderRadius:'50%', background: map[color]||'#888', flexShrink:0, border:'1px solid rgba(255,255,255,0.2)' }
+  },
+  select: {
+    background:'none', border:'none', color:'var(--text-secondary)',
+    fontSize:12, fontWeight:500, cursor:'pointer', flex:1,
+    fontFamily:'var(--font-body)',
+  },
+  colorSwatch: (color) => {
+    const map = { Black:'#1a1a2e', Brown:'#8B4513', Blonde:'#F5DEB3', Red:'#c0392b', White:'#f0f0f0', Blue:'#4f8eff' }
+    return {
+      width:34, height:34, borderRadius:8, flexShrink:0,
+      background: map[color]||'#888',
+      border:'1px solid rgba(255,255,255,0.12)',
+      boxShadow:`0 0 10px ${map[color]||'#888'}60`,
+    }
+  },
+  textarea: {
+    width:'100%', boxSizing:'border-box',
+    background:'rgba(6,9,26,0.6)',
+    border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:12, padding:'11px 13px',
+    color:'var(--text-primary)', fontSize:12, lineHeight:1.65,
+    fontFamily:'var(--font-body)', resize:'vertical',
+    transition:'border-color 0.2s, box-shadow 0.2s', display:'block',
+  },
+  genBtn: {
+    display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+    width:'100%', marginTop:14, padding:'13px',
+    background:'linear-gradient(135deg,#4f8eff,#a78bfa)',
+    border:'none', borderRadius:12, color:'#fff',
+    fontFamily:'var(--font-display)', fontSize:12, fontWeight:800,
+    letterSpacing:'0.06em',
+    boxShadow:'0 4px 20px rgba(79,142,255,0.3)',
+    transition:'all 0.2s ease',
+  },
+  uploadHint: {
+    textAlign:'center', fontSize:10, color:'rgba(79,142,255,0.6)',
+    marginTop:6, fontWeight:500, letterSpacing:'0.02em',
+    animation:'pulse 2s ease-in-out infinite',
+  },
+
+  /* Right panel */
+  rightPanel: {
+    display:'flex', flexDirection:'column', gap:18,
+  },
+  previewBox: {
+    position:'relative',
+    background:'rgba(17,24,39,0.85)',
+    border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:20, minHeight:380,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    overflow:'hidden', backdropFilter:'blur(16px)',
+    boxShadow:'0 20px 60px rgba(0,0,0,0.4)',
+  },
+  canvasPreview: {
+    width:'100%', height:'100%', minHeight:380,
+    position:'relative',
+  },
+  canvasBadge: {
+    position:'absolute', bottom:14, left:'50%',
+    transform:'translateX(-50%)',
+    display:'flex', alignItems:'center', gap:6,
+    padding:'5px 14px',
+    background:'rgba(8,13,26,0.85)',
+    border:'1px solid rgba(251,191,36,0.25)',
+    borderRadius:100, backdropFilter:'blur(8px)',
+    fontSize:10, fontWeight:600,
+    color:'#fbbf24', whiteSpace:'nowrap',
+  },
+  emptyPreview: {
+    display:'flex', flexDirection:'column', alignItems:'center',
+    justifyContent:'center', gap:10,
+    width:'100%', height:'100%', minHeight:380, position:'relative',
+  },
+  emptyIconWrap: {
+    width:72, height:72,
+    background:'rgba(79,142,255,0.05)',
+    border:'1px solid rgba(79,142,255,0.1)',
+    borderRadius:20,
+    display:'flex', alignItems:'center', justifyContent:'center',
+  },
+  emptyLabel: {
+    fontFamily:'var(--font-display)',
+    fontSize:'clamp(18px,2.5vw,28px)', fontWeight:800,
+    letterSpacing:'0.06em', color:'rgba(240,244,255,0.15)',
+  },
+  emptyHint: { fontSize:12, color:'var(--text-muted)', letterSpacing:'0.03em' },
+  gridOverlay: {
+    position:'absolute', inset:0, borderRadius:20,
+    backgroundImage:'linear-gradient(rgba(79,142,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,255,0.04) 1px,transparent 1px)',
+    backgroundSize:'40px 40px', pointerEvents:'none',
+  },
+  zoomBadge: {
+    position:'absolute', top:14, right:14,
+    background:'rgba(8,13,26,0.8)',
+    border:'1px solid rgba(79,142,255,0.2)',
+    borderRadius:100, padding:'3px 10px',
+    fontSize:11, fontWeight:700, color:'var(--accent)',
+    fontFamily:'monospace', backdropFilter:'blur(8px)',
+  },
+
+  /* Loading */
+  loadingState: {
+    display:'flex', flexDirection:'column', alignItems:'center', gap:14,
+  },
+  loaderOrb: {
+    width:56, height:56, borderRadius:'50%',
+    border:'3px solid rgba(79,142,255,0.2)',
+    borderTopColor:'#4f8eff',
+    animation:'spin360 0.8s linear infinite',
+  },
+  loadingLabel: {
+    fontFamily:'var(--font-display)', fontSize:13, fontWeight:700,
+    color:'var(--text-secondary)', letterSpacing:'0.05em',
+  },
+  progressTrack: {
+    width:200, height:4,
+    background:'var(--bg-elevated)', borderRadius:2, overflow:'hidden',
+  },
+  progressFill: {
+    height:'100%',
+    background:'linear-gradient(90deg,#4f8eff,#a78bfa)',
+    borderRadius:2,
+    transition:'width 0.4s ease',
+  },
+  progressPct: {
+    fontSize:11, fontWeight:700, color:'var(--accent)',
+    fontFamily:'monospace',
+  },
+
+  /* Control buttons */
+  ctrlRow: { display:'flex', gap:8, flexWrap:'wrap' },
+  ctrlBtn: {
+    flex:'1 1 80px',
+    display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+    padding:'10px 8px',
+    background:'rgba(17,24,39,0.85)',
+    border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:11, color:'var(--text-secondary)',
+    fontFamily:'var(--font-display)', fontSize:10, fontWeight:700,
+    letterSpacing:'0.06em', cursor:'pointer',
+    backdropFilter:'blur(12px)',
+    transition:'background 0.2s,border-color 0.2s,transform 0.15s',
+  },
+  ctrlIcon: { fontSize:15, lineHeight:1, color:'var(--accent)' },
+
+  /* Recent */
+  recentSection: {
+    background:'rgba(17,24,39,0.85)',
+    border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:20, padding:'18px 20px',
+    backdropFilter:'blur(16px)',
+  },
+  recentHeader: {
+    display:'flex', alignItems:'center', justifyContent:'space-between',
+    marginBottom:14,
+  },
+  recentTitle: {
+    fontFamily:'var(--font-display)', fontSize:10, fontWeight:800,
+    letterSpacing:'0.12em', color:'var(--text-muted)',
+  },
+  recentCount: {
+    fontSize:10, fontWeight:500, color:'var(--accent)',
+    background:'var(--accent-subtle)',
+    border:'1px solid rgba(79,142,255,0.2)',
+    borderRadius:100, padding:'2px 10px',
+  },
+  recentGrid: {
+    display:'grid',
+    gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))',
+    gap:10,
+  },
+  recentCard: {
+    display:'flex', flexDirection:'column', gap:6, cursor:'pointer',
+    transition:'transform 0.2s, border-color 0.2s',
+    animation:'fadeUp 0.4s ease both',
+  },
+  recentThumb: {
+    position:'relative', aspectRatio:'1',
+    background:'rgba(255,255,255,0.03)',
+    border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:10,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    overflow:'hidden',
+  },
+  thumbShimmer: {
+    position:'absolute', inset:0,
+    background:'linear-gradient(135deg,rgba(79,142,255,0.05),rgba(167,139,250,0.05))',
+    borderRadius:10,
+  },
+  recentDate: {
+    fontSize:10, fontWeight:500, color:'var(--text-muted)',
+    textAlign:'center', fontFamily:'monospace', letterSpacing:'0.02em',
+  },
+}
+
+/* Slider styles */
+const sl = {
+  row: { display:'flex', alignItems:'center', gap:10 },
+  label: { fontSize:10, fontWeight:600, color:'var(--text-muted)', width:38, flexShrink:0, letterSpacing:'0.03em' },
+  track: {
+    flex:1, height:4, background:'rgba(255,255,255,0.08)', borderRadius:2,
+    position:'relative', cursor:'pointer',
+  },
+  fill: {
+    height:'100%', background:'linear-gradient(90deg,#4f8eff,#a78bfa)',
+    borderRadius:2, pointerEvents:'none', transition:'width 0.1s',
+  },
+  input: {
+    position:'absolute', inset:0, width:'100%', height:'100%',
+    opacity:0, cursor:'pointer', margin:0,
+  },
+  val: { fontSize:10, color:'var(--accent)', fontFamily:'monospace', width:24, textAlign:'right' },
+}
+
+/* Chip styles */
+const chip = {
+  base: {
+    padding:'5px 12px', borderRadius:100,
+    fontSize:10, fontWeight:700, letterSpacing:'0.04em',
+    cursor:'pointer', border:'1px solid',
+    transition:'all 0.18s', fontFamily:'var(--font-display)',
+  },
+  active: {
+    background:'rgba(79,142,255,0.15)', borderColor:'rgba(79,142,255,0.5)',
+    color:'#a0c0ff', boxShadow:'0 0 12px rgba(79,142,255,0.2)',
+  },
+  idle: {
+    background:'rgba(255,255,255,0.03)', borderColor:'rgba(255,255,255,0.08)',
+    color:'var(--text-muted)',
+  },
+}
