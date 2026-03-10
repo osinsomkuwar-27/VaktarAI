@@ -7,8 +7,8 @@ const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Hindi'
 const STATS = [
   { value: '1,234', label: 'Total Generations', icon: '◈', color: '#4f8eff' },
   { value: '98%',   label: 'Satisfaction Rate',  icon: '◉', color: '#10d9a0' },
-  { value: '4.9s',  label: 'Avg. Gen Time',      icon: '◷', color: '#a78bfa' },
-  { value: '20+',   label: 'Languages',           icon: '◎', color: '#fbbf24' },
+  { value: '90s',  label: 'Avg. Gen Time',      icon: '◷', color: '#a78bfa' },
+  { value: '22+',   label: 'Languages',           icon: '◎', color: '#fbbf24' },
   { value: '3 HD',  label: 'Output Formats',      icon: '▣', color: '#f87171' },
 ]
 
