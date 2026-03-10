@@ -1,5 +1,7 @@
 # ── Secrets ──
 .env
+*.env
+.env.*
 
 # ── Large Media Files ──
 *.mp4
@@ -22,6 +24,21 @@ avatar_video/uploads/
 backend/pipeline/generated_videos/
 backend/pipeline/uploads/
 backend/*/uploads/
+backend/*/outputs/
+backend/voice_synthesis/outputs/
+output.wav
+output.mp3
+photo.png
+body.json
+result.mp4
+avatar_result.mp4
+Screenshot*.png
+Screenshot*.jpg
+
+# ── Logs ──
+*.log
+logs/
+uvicorn.log
 
 # ── Python ──
 __pycache__/
@@ -39,6 +56,7 @@ build/
 # ── Node ──
 node_modules/
 frontend/build/
+frontend/dist/
 frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local

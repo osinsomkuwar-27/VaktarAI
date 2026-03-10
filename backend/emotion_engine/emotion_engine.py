@@ -3,6 +3,7 @@ import json
 import os
 from dotenv import load_dotenv
 from typing import Optional
+import re
 
 load_dotenv()
 
@@ -70,11 +71,6 @@ def enhance_text(plain_text: str, tone_override: Optional[str] = None) -> dict:
 
     raw = raw[start:end]
 
-    # Fix common LLM JSON mistakes
-    import re
-    # Fix unescaped quotes inside SSML attribute values
-    raw = re.sub(r'(?<=: ")(.+?)(?="[,\}])', lambda m: m.group(0).replace('"', '\\"').replace('\\\\"', '\\"'), raw)
-
     try:
         result = json.loads(raw)
     except json.JSONDecodeError:
@@ -90,6 +86,7 @@ def enhance_text(plain_text: str, tone_override: Optional[str] = None) -> dict:
             raise ValueError(f"Could not parse response: {raw}")
 
     return result
+
 
 # Quick test
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ print("=" * 60)
 print("TESTING TRANSLATION MODULE")
 print("=" * 60)
 
-# --- Test inputs (pretending these came from Soham's Claude output) ---
 test_cases = [
     {
         "name": "SAD emotion → Hindi",
@@ -33,14 +32,12 @@ test_cases = [
     }
 ]
 
-# --- Run each test ---
 for i, test in enumerate(test_cases, 1):
     print(f"\nTest {i}: {test['name']}")
     print(f"  INPUT : {test['ssml']}")
     result = translate_with_emotion(test['ssml'], test['lang'])
     print(f"  OUTPUT: {result}")
 
-# --- Test error handling ---
 print("\n" + "=" * 60)
 print("TESTING ERROR HANDLING")
 print("=" * 60)

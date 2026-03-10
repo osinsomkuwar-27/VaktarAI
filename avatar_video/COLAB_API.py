@@ -10,14 +10,32 @@
 #  4. Run it — copy the printed URL and put in .env
 # ============================================================
 
-# Install Flask and ngrok
+# Install Flask, ngrok and all SadTalker dependencies
 import subprocess
 import sys
-subprocess.run(["pip", "install", "flask", "pyngrok", "-q"])
-subprocess.run([sys.executable, "-m", "pip", "install", "flask", "pyngrok", "-q"])
+
+def pip_install(*packages):
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", *packages],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(f"[PIP ERROR]\n{result.stderr}")
+    else:
+        print(f"[PIP OK] {', '.join(packages)}")
+
+pip_install("flask", "pyngrok")
+pip_install(
+    "yacs",           # ← fixes: ModuleNotFoundError: No module named 'yacs'
+    "face_alignment",
+    "imageio-ffmpeg",
+    "kornia",
+    "safetensors",
+    "ninja",
+)
 
 import subprocess as sp
-import os, shutil, glob, threading, uuid
+import os, shutil, glob, threading, uuid, sys
 from flask import Flask, request, send_file, jsonify
 from pyngrok import ngrok
 
@@ -74,13 +92,13 @@ def generate():
         # Run SadTalker
         print(f"[API] Running SadTalker for session {session}...")
         result = sp.run([
-            "python", "inference.py",
+            sys.executable, "inference.py",   # ← sys.executable not "python"
             "--driven_audio", audio_wav,
             "--source_image", photo_path,
             "--result_dir", "./results",
             "--still",
             "--preprocess", "full",
-            "--enhancer", "gfpgan"
+            # "--enhancer", "gfpgan"  # ← disabled: causes ImportError if gfpgan is broken
         ], capture_output=True, text=True)
 
         # Clean up input files
@@ -105,12 +123,19 @@ def generate():
         return jsonify({"error": str(e)}), 500
 
 
+# ── Kill any existing process on port 5000 ──
+import signal
+sp.run(["fuser", "-k", "5000/tcp"], capture_output=True)
+
 # ── Start ngrok tunnel ──
 # Get free token from ngrok.com (sign up, go to dashboard, copy auth token)
-NGROK_TOKEN = "PASTE_YOUR_NGROK_TOKEN_HERE"  # <── replace this
+NGROK_TOKEN = os.getenv("NGROK_TOKEN", "your_actual_token_here")  # ← paste your token from dashboard.ngrok.com/get-started/your-authtoken
+if NGROK_TOKEN == "your_actual_token_here":
+    raise ValueError("Replace NGROK_TOKEN with your real token from https://dashboard.ngrok.com/get-started/your-authtoken")
 
 ngrok.set_auth_token(NGROK_TOKEN)
-public_url = ngrok.connect("http://localhost:5000")
+tunnel = ngrok.connect("http://localhost:5000")
+public_url = tunnel.public_url  # ← extract the plain URL string
 
 print("\n" + "="*55)
 print("  SADTALKER API IS LIVE!")

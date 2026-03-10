@@ -1,17 +1,44 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import requests
+from cartesia import Cartesia
 import os
-import io
+import re
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+load_dotenv()
 
-app = FastAPI(title="Voice Synthesis API", version="1.0.0")
+app = FastAPI(title="Kshitij's Voice Synthesis")
 
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+client = Cartesia(api_key=os.getenv("CARTESIA_API_KEY"))
+
+# ✅ Always save relative to THIS file, not the working directory
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+TONE_VOICE_MAP = {
+    "urgent":     "dbfa416f-d5c3-4006-854b-235ef6bdf4fd",  # Damon - Commanding Narrator
+    "calm":       "ea93f57f-7c71-4d79-aeaa-0a39b150f6ca",  # Diana - Gentle Mom
+    "inspiring":  "d6905573-8e91-4e32-b103-fd4d1205cd87",  # Mindy - Spirited Ally
+    "formal":     "d709a7e8-9495-4247-aef0-01b3207d11bf",  # Donny - Steady Presence
+    "empathetic": "e5a6cd18-d552-4192-9533-82a08cac8f23",  # Patricia - Veteran Support
+}
+
+TONE_SPEED_MAP = {
+    "urgent":     1.3,
+    "calm":       0.85,
+    "inspiring":  1.1,
+    "formal":     1.0,
+    "empathetic": 0.9,
+}
+
+
+def strip_ssml(ssml_text: str) -> str:
+    """Strip SSML tags — Cartesia takes plain text, not SSML."""
+    return re.sub(r'<[^>]+>', '', ssml_text).strip()
 
 
 class VoiceRequest(BaseModel):
@@ -21,44 +48,59 @@ class VoiceRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "Voice Synthesis API running", "port": 8003}
+    return {"status": "Voice synthesis running", "port": 8003}
 
 
 @app.post("/synthesize")
-def synthesize(request: VoiceRequest):
-    if not ELEVENLABS_API_KEY or not ELEVENLABS_VOICE_ID:
-        raise HTTPException(status_code=500, detail="ElevenLabs API key or Voice ID not set in .env")
+async def synthesize(request: VoiceRequest):
+    if not os.getenv("CARTESIA_API_KEY"):
+        raise HTTPException(status_code=500, detail="CARTESIA_API_KEY not set in .env")
 
-    # Map tone to ElevenLabs voice settings
-    tone_settings = {
-        "urgent":    {"stability": 0.3, "similarity_boost": 0.8, "style": 0.8},
-        "calm":      {"stability": 0.9, "similarity_boost": 0.7, "style": 0.2},
-        "inspiring": {"stability": 0.5, "similarity_boost": 0.8, "style": 0.7},
-        "formal":    {"stability": 0.8, "similarity_boost": 0.7, "style": 0.1},
-        "empathetic":{"stability": 0.7, "similarity_boost": 0.8, "style": 0.5},
-    }
+    try:
+        plain_text = strip_ssml(request.ssml)
 
-    settings = tone_settings.get(request.detected_tone, tone_settings["formal"])
+        if not plain_text:
+            raise HTTPException(status_code=400, detail="Text is empty after stripping SSML tags")
 
-    response = requests.post(
-        f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}",
-        headers={
-            "xi-api-key": ELEVENLABS_API_KEY,
-            "Content-Type": "application/json"
-        },
-        json={
-            "text": request.ssml,
-            "model_id": "eleven_multilingual_v2",
-            "voice_settings": settings
-        }
-    )
+        print(f"[VOICE] Tone: {request.detected_tone} | Text: {plain_text}")
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail=f"ElevenLabs error: {response.text}")
+        voice_id = TONE_VOICE_MAP.get(request.detected_tone, TONE_VOICE_MAP["formal"])
 
-    return StreamingResponse(
-        io.BytesIO(response.content),
-        media_type="audio/mpeg"
-    )
+        response = client.tts.generate(
+            model_id="sonic-3",
+            transcript=plain_text,
+            voice={
+                "mode": "id",
+                "id": voice_id,
+            },
+            output_format={
+                "container": "wav",
+                "sample_rate": 44100,
+                "encoding": "pcm_s16le",
+            },
+        )
+
+        # ✅ Save to absolute path — works regardless of where uvicorn is launched from
+        audio_path = os.path.join(OUTPUT_DIR, "output_audio.wav")
+        with open(audio_path, "wb") as f:
+            for chunk in response.iter_bytes():
+                f.write(chunk)
+
+        print(f"[VOICE] Audio saved: {audio_path}")
+
+        if not os.path.exists(audio_path):
+            raise HTTPException(status_code=500, detail=f"Audio file not created at {audio_path}")
+
+        return FileResponse(
+            audio_path,
+            media_type="audio/wav",
+            filename="output_audio.wav"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Run with: uvicorn voice_synthesis:app --reload --port 8003
