@@ -1,0 +1,57 @@
+# ── Secrets ──
+.env
+
+# ── Large Media Files ──
+*.mp4
+*.mp3
+*.wav
+*.ogg
+*.avi
+*.mov
+
+# ── SadTalker Model Weights (5-10GB, never push) ──
+avatar_video/SadTalker/checkpoints/
+avatar_video/SadTalker/gfpgan/
+avatar_video/SadTalker/results/
+avatar_video/SadTalker/.git/
+
+# ── Generated / Temp Files ──
+avatar_video/inputs/
+avatar_video/outputs/
+avatar_video/uploads/
+backend/pipeline/generated_videos/
+backend/pipeline/uploads/
+backend/*/uploads/
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# ── Node ──
+node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# ── ML Model Files ──
+*.pth
+*.safetensors
+*.pth.tar
+*.ckpt
+*.bin
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+desktop.ini
