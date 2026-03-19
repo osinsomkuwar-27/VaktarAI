@@ -73,3 +73,6 @@ frontend/.env.production.local
 .DS_Store
 Thumbs.db
 desktop.ini
+
+avatar_video/.python-version
+backend/.python-version

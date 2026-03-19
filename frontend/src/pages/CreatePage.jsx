@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-// import { generateAvatar } from '../api'
+import { generateAvatar } from '../api'
 
 const STYLES      = ['Realistic', 'Anime', 'Cartoon']
 const GENDERS     = ['Male', 'Female', 'Custom']
