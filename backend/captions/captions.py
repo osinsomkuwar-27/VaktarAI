@@ -7,20 +7,20 @@ def extract_plain_text(ssml_text):
     plain_text = re.sub(r'<[^>]+>', '', ssml_text).strip()
     return plain_text
 
-def make_caption_image(text, video_width, video_height):
-    img = Image.new('RGBA', (video_width, 120), (0, 0, 0, 150))
+def make_caption_image(text, video_width):
+    # Create a TRANSPARENT background — not black/blue
+    img = Image.new('RGBA', (video_width, 80), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
     try:
-        # Nirmala.ttc supports Hindi/Devanagari
         font = ImageFont.truetype(r"C:\Windows\Fonts\Nirmala.ttc", 36)
         print("Using Nirmala font for Hindi")
     except Exception as e:
         print(f"Font error: {e}")
         font = ImageFont.load_default()
 
-    # Draw black shadow for readability
-    draw.text((11, 11), text, font=font, fill=(0, 0, 0, 255))
+    # Draw dark shadow behind text so it's readable on any video
+    draw.text((11, 11), text, font=font, fill=(0, 0, 0, 180))
     # Draw white text on top
     draw.text((10, 10), text, font=font, fill=(255, 255, 255, 255))
 
@@ -34,22 +34,27 @@ def add_captions_to_video(video_path: str, translated_ssml: str, output_path: st
     caption_text = extract_plain_text(translated_ssml)
     print(f"Caption text: {caption_text}")
 
-    # Load video
+    # Load the original video
     print(f"Loading video from: {video_path}")
     video = VideoFileClip(video_path)
 
-    # Create caption image using Pillow
-    caption_array = make_caption_image(caption_text, video.w, video.h)
+    # Create transparent caption image
+    caption_array = make_caption_image(caption_text, video.w)
 
-    # Turn it into a moviepy clip
-    caption_clip = ImageClip(caption_array)
-    caption_clip = caption_clip.set_duration(video.duration)
-    caption_clip = caption_clip.set_position(('center', 'bottom'))
+    # Turn into moviepy clip
+    caption_clip = (ImageClip(caption_array)
+                   .set_duration(video.duration)
+                   .set_position(('center', 'bottom')))
 
-    # Overlay on video
-    final_video = CompositeVideoClip([video, caption_clip])
+    # Overlay caption ON TOP of original video
+    final_video = CompositeVideoClip(
+    [video, caption_clip],
+    size=video.size
+    )
+    final_video = final_video.set_audio(video.audio)
 
-    # Save
+
+    # Save with audio preserved
     print(f"Saving captioned video to: {output_path}")
     final_video.write_videofile(
         output_path,

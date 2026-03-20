@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from captions import add_captions_to_video
 
-app = FastAPI(title="Bhargavi's Caption Module")
+app = FastAPI(title=" Caption Module")
 
 app.add_middleware(
     CORSMiddleware,
