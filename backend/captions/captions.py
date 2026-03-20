@@ -10,9 +10,24 @@ def extract_plain_text(ssml_text):
 
 def get_timed_segments(video_path):
     print("Loading Whisper model...")
-    model = whisper.load_model("base")
+    model = whisper.load_model("small")
+
+    print("Detecting language...")
+    audio = whisper.load_audio(video_path)
+    audio = whisper.pad_or_trim(audio)
+    mel = whisper.log_mel_spectrogram(audio).to(model.device)
+    _, probs = model.detect_language(mel)
+
+    detected_lang = max(probs, key=probs.get)
+
+    if probs.get("hi", 0) > 0.10:
+        detected_lang = "hi"
+
+    print(f"Using language: {detected_lang}")
+
     print("Transcribing audio to get timestamps...")
-    result = model.transcribe(video_path)
+    result = model.transcribe(video_path, language=detected_lang, task="transcribe")
+
     segments = []
     for seg in result["segments"]:
         segments.append({
@@ -22,6 +37,7 @@ def get_timed_segments(video_path):
         })
         print(f"{seg['start']:.1f}s -> {seg['end']:.1f}s : {seg['text']}")
     return segments
+
 
 def make_caption_image(text, video_width):
     try:
