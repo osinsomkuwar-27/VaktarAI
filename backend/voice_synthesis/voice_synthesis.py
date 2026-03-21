@@ -5,34 +5,25 @@ from pydantic import BaseModel
 from cartesia import Cartesia
 import os
 import re
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI(title="Kshitij's Voice Synthesis")
+app = FastAPI(title="AI Avatar Voice Synthesis")
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-client = Cartesia(api_key=os.getenv("CARTESIA_API_KEY"))
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TONE_VOICE_MAP = {
-    "urgent":     "dbfa416f-d5c3-4006-854b-235ef6bdf4fd",  # Damon - Commanding Narrator
-    "calm":       "ea93f57f-7c71-4d79-aeaa-0a39b150f6ca",  # Diana - Gentle Mom
-    "inspiring":  "d6905573-8e91-4e32-b103-fd4d1205cd87",  # Mindy - Spirited Ally
-    "formal":     "d709a7e8-9495-4247-aef0-01b3207d11bf",  # Donny - Steady Presence
-    "empathetic": "e5a6cd18-d552-4192-9533-82a08cac8f23",  # Patricia - Veteran Support
-}
+# Load voice config
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voice_config.json")
+with open(CONFIG_PATH) as f:
+    VOICE_CONFIG = json.load(f)
 
-TONE_SPEED_MAP = {
-    "urgent":     1.3,
-    "calm":       0.85,
-    "inspiring":  1.1,
-    "formal":     1.0,
-    "empathetic": 0.9,
-}
+VALID_SPEAKERS = list(VOICE_CONFIG["voices"].keys())
+# ["shreeja", "osin", "soham", "kshitij", "tanishka", "bhargavi"]
 
 
 def strip_ssml(ssml_text: str) -> str:
@@ -41,18 +32,47 @@ def strip_ssml(ssml_text: str) -> str:
 
 class VoiceRequest(BaseModel):
     ssml: str
-    detected_tone: str = "formal"
+    speaker: str = "shreeja"  # name-based, replaces detected_tone
 
 
 @app.get("/health")
 def health():
-    return {"status": "Voice synthesis running", "port": 8003}
+    return {"status": "Voice synthesis running", "port": 8003, "speakers": VALID_SPEAKERS}
+
+
+@app.get("/speakers")
+def get_speakers():
+    return {"speakers": VALID_SPEAKERS}
 
 
 @app.post("/synthesize")
 async def synthesize(request: VoiceRequest):
-    if not os.getenv("CARTESIA_API_KEY"):
-        raise HTTPException(status_code=500, detail="CARTESIA_API_KEY not set in .env")
+    # Validate speaker name
+    speaker = request.speaker.lower().strip()
+    if speaker not in VALID_SPEAKERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid speaker '{speaker}'. Valid options: {VALID_SPEAKERS}"
+        )
+
+    # Block speakers with placeholder IDs
+    voice_id = VOICE_CONFIG["voices"][speaker]
+    if not voice_id or voice_id.endswith("-here"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Voice ID for '{speaker}' is not configured yet."
+        )
+
+    # Pick correct API key for this speaker
+    api_key_env = VOICE_CONFIG["api_keys"][speaker]
+    api_key = os.getenv(api_key_env)
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail=f"API key '{api_key_env}' not set in .env"
+        )
+
+    client = Cartesia(api_key=api_key)
 
     try:
         plain_text = strip_ssml(request.ssml)
@@ -60,11 +80,9 @@ async def synthesize(request: VoiceRequest):
         if not plain_text:
             raise HTTPException(status_code=400, detail="Text is empty after stripping SSML tags")
 
-        print(f"[VOICE] Tone: {request.detected_tone} | Text: {plain_text}")
+        print(f"[VOICE] Speaker: {speaker} | Voice ID: {voice_id} | Text: {plain_text}")
 
-        voice_id = TONE_VOICE_MAP.get(request.detected_tone, TONE_VOICE_MAP["formal"])
-
-        response = client.tts.generate(
+        chunk_iter = client.tts.bytes(
             model_id="sonic-3",
             transcript=plain_text,
             voice={
@@ -78,25 +96,29 @@ async def synthesize(request: VoiceRequest):
             },
         )
 
-        audio_path = os.path.join(OUTPUT_DIR, "output_audio.wav")
+        audio_path = os.path.join(OUTPUT_DIR, f"{speaker}_output.wav")
         with open(audio_path, "wb") as f:
-            f.write(response.read())
+            for chunk in chunk_iter:
+                f.write(chunk)
 
-        print(f"[VOICE] Audio saved: {audio_path}")
+        file_size = os.path.getsize(audio_path)
+        print(f"[VOICE] Audio saved: {audio_path} ({file_size} bytes)")
 
-        if not os.path.exists(audio_path):
-            raise HTTPException(status_code=500, detail=f"Audio file not created at {audio_path}")
+        if file_size == 0:
+            raise ValueError("Cartesia returned empty audio — check voice ID or API quota")
 
         return FileResponse(
             audio_path,
             media_type="audio/wav",
-            filename="output_audio.wav"
+            filename=f"{speaker}_output.wav"
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 # Run with: uvicorn voice_synthesis:app --reload --port 8003

@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { generateAvatar } from '../api'
 import CameraCapture from '../components/CameraCapture'
 
-const TONES = ['Professional', 'Friendly', 'Energetic', 'Calm', 'Inspirational']
+const SPEAKERS = [
+  { key: 'shreeja',  label: 'Shreeja',  initials: 'SH', color: '#a78bfa' },
+  { key: 'osin',     label: 'Osin',     initials: 'OS', color: '#10d9a0' },
+  { key: 'soham',    label: 'Soham',    initials: 'SO', color: '#f87171' },
+  { key: 'kshitij',  label: 'Kshitij',  initials: 'KS', color: '#4f8eff' },
+  { key: 'tanishka', label: 'Tanishka', initials: 'TA', color: '#fbbf24' },
+  { key: 'bhargavi', label: 'Bhargavi', initials: 'BH', color: '#f472b6' },
+]
 
 const LANGUAGE_MAP = {
   'English':    'en',
@@ -19,14 +26,6 @@ const LANGUAGE_MAP = {
   'Japanese':   'ja',
   'Arabic':     'ar',
   'Portuguese': 'pt',
-}
-
-const TONE_MAP = {
-  'Professional':  'formal',
-  'Friendly':      'calm',
-  'Energetic':     'urgent',
-  'Calm':          'calm',
-  'Inspirational': 'inspiring',
 }
 
 const STATS = [
@@ -187,13 +186,13 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
         @keyframes fadeUp  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         @keyframes spin360 { to{transform:rotate(360deg)} }
         @keyframes statPop { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
-        .stat-card:hover   { border-color:rgba(79,142,255,0.3)!important; transform:translateY(-3px)!important; }
-        .tone-chip:hover   { border-color:rgba(79,142,255,0.4)!important; color:var(--text-secondary)!important; }
+        .stat-card:hover     { border-color:rgba(79,142,255,0.3)!important; transform:translateY(-3px)!important; }
+        .speaker-card:hover  { border-color:rgba(79,142,255,0.4)!important; background:rgba(79,142,255,0.06)!important; }
         .gen-btn:hover:not(:disabled) { box-shadow:0 6px 32px rgba(79,142,255,0.5)!important; transform:translateY(-1px)!important; }
-        .drop-zone:hover   { border-color:rgba(79,142,255,0.7)!important; background:rgba(79,142,255,0.08)!important; }
-        .photo-opt:hover   { border-color:rgba(79,142,255,0.5)!important; color:#a0c0ff!important; background:rgba(79,142,255,0.1)!important; }
-        textarea:focus     { border-color:rgba(79,142,255,0.5)!important; outline:none; box-shadow:0 0 0 3px rgba(79,142,255,0.08)!important; }
-        select:focus       { outline:none; border-color:rgba(79,142,255,0.5)!important; }
+        .drop-zone:hover     { border-color:rgba(79,142,255,0.7)!important; background:rgba(79,142,255,0.08)!important; }
+        .photo-opt:hover     { border-color:rgba(79,142,255,0.5)!important; color:#a0c0ff!important; background:rgba(79,142,255,0.1)!important; }
+        textarea:focus       { border-color:rgba(79,142,255,0.5)!important; outline:none; box-shadow:0 0 0 3px rgba(79,142,255,0.08)!important; }
+        select:focus         { outline:none; border-color:rgba(79,142,255,0.5)!important; }
       `}</style>
 
       {showCamera && (
@@ -446,16 +445,39 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
             </div>
           </div>
 
-          {/* Tone */}
+          {/* Speaker */}
           <div style={s.fieldGroup}>
-            <label style={s.fieldLabel}>Tone</label>
-            <div style={s.toneGrid}>
-              {TONES.map(t => (
-                <button key={t} className="tone-chip" onClick={() => setTone(t)} style={{ ...s.toneChip, ...(tone === t ? s.toneActive : s.toneIdle) }}>
-                  {t}
+            <label style={s.fieldLabel}>Speaker Voice</label>
+            <div style={s.speakerGrid}>
+              {SPEAKERS.map(sp => (
+                <button
+                  key={sp.key}
+                  className="speaker-card"
+                  onClick={() => setSpeaker(sp.key)}
+                  style={{
+                    ...s.speakerCard,
+                    ...(speaker === sp.key ? {
+                      borderColor: sp.color,
+                      background: `${sp.color}18`,
+                      boxShadow: `0 0 12px ${sp.color}30`,
+                    } : {})
+                  }}
+                >
+                  <div style={{ ...s.speakerAvatar, background:`${sp.color}22`, color:sp.color }}>
+                    {sp.initials}
+                  </div>
+                  <span style={{ ...s.speakerName, color: speaker === sp.key ? sp.color : 'var(--text-muted)' }}>
+                    {sp.label}
+                  </span>
                 </button>
               ))}
             </div>
+            {activeSpeaker && (
+              <p style={s.speakerHint}>
+                Speaking as <span style={{ color: activeSpeaker.color, fontWeight: 700 }}>{activeSpeaker.label}</span>
+
+              </p>
+            )}
           </div>
 
           {/* Generate */}
@@ -531,9 +553,10 @@ const s = {
   selectWrap:     { position:'relative' },
   select:         { width:'100%', boxSizing:'border-box', background:'rgba(6,9,26,0.7)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:10, padding:'10px 36px 10px 14px', color:'var(--text-secondary)', fontSize:13, fontFamily:'var(--font-body)', cursor:'pointer', appearance:'none', transition:'border-color 0.2s' },
   selectArrow:    { position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' },
-  toneGrid:       { display:'flex', flexWrap:'wrap', gap:8 },
-  toneChip:       { padding:'6px 14px', borderRadius:100, fontSize:11, fontWeight:700, letterSpacing:'0.04em', cursor:'pointer', border:'1px solid', transition:'all 0.18s', fontFamily:'var(--font-display)' },
-  toneActive:     { background:'rgba(79,142,255,0.15)', borderColor:'rgba(79,142,255,0.5)', color:'#a0c0ff', boxShadow:'0 0 10px rgba(79,142,255,0.2)' },
-  toneIdle:       { background:'rgba(255,255,255,0.03)', borderColor:'rgba(255,255,255,0.08)', color:'var(--text-muted)' },
+  speakerGrid:    { display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 },
+  speakerCard:    { display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'10px 6px', background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, cursor:'pointer', transition:'all 0.18s' },
+  speakerAvatar:  { width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, fontFamily:'var(--font-display)', letterSpacing:'0.04em' },
+  speakerName:    { fontSize:11, fontWeight:700, fontFamily:'var(--font-display)', letterSpacing:'0.03em', transition:'color 0.18s' },
+  speakerHint:    { fontSize:11, color:'var(--text-muted)', margin:0, paddingTop:2 },
   generateBtn:    { display:'flex', alignItems:'center', justifyContent:'center', gap:9, width:'100%', padding:'14px', background:'linear-gradient(135deg,#4f8eff,#a78bfa)', border:'none', borderRadius:12, color:'#fff', fontFamily:'var(--font-display)', fontSize:14, fontWeight:800, letterSpacing:'0.03em', boxShadow:'0 4px 20px rgba(79,142,255,0.3)', transition:'all 0.2s ease' },
 }
