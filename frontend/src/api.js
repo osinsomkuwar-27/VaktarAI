@@ -2,7 +2,7 @@ const PIPELINE_URL = 'http://localhost:8000'
 
 /**
  * generateAvatar
- * Called by FeaturesPage handleGenerate()
+ * Called by CreatePage handleGenerate()
  *
  * @param {File}     imageFile        - portrait photo file
  * @param {string}   text             - speech text

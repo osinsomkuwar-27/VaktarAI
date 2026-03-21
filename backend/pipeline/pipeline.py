@@ -17,9 +17,13 @@ from fastapi.responses import JSONResponse
 import requests
 import os
 import uuid
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Add parent directory to path so document_processor can be imported
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 app = FastAPI(title="AI Avatar Master Pipeline", version="1.0.0")
 
@@ -34,7 +38,7 @@ os.makedirs("generated_videos", exist_ok=True)
 os.makedirs("uploads", exist_ok=True)
 app.mount("/videos", StaticFiles(directory="generated_videos"), name="videos")
 
-# Service URLs — set in .env or defaults to localhost
+# Service URLs
 EMOTION_URL     = os.getenv("EMOTION_URL",     "http://localhost:8001")
 TRANSLATION_URL = os.getenv("TRANSLATION_URL", "http://localhost:8002")
 VOICE_URL       = os.getenv("VOICE_URL",       "http://localhost:8003")
@@ -55,37 +59,18 @@ async def generate_video(
     tone_override:   str        = Form(default=None),
     photo:           UploadFile = File(...)
 ):
-    """
-    Main endpoint. Osin calls this.
-
-    Input:
-      - text            : the message to speak
-      - target_language : language code e.g. 'hi', 'ta', 'te', 'mr'
-      - tone_override   : optional e.g. 'urgent', 'calm' (null = auto detect)
-      - photo           : user's uploaded photo (JPG/PNG)
-
-    Output:
-      {
-        "video_url":       "http://localhost:8000/videos/xxxx.mp4",
-        "detected_tone":   "urgent",
-        "translated_text": "...",
-        "ssml":            "<speak>...</speak>"
-      }
-    """
-
     session_id = uuid.uuid4().hex
     photo_path = os.path.join(UPLOAD_DIR, f"{session_id}_photo.png")
     audio_path = os.path.join(UPLOAD_DIR, f"{session_id}_audio.wav")
 
     try:
-        # Save uploaded photo
         with open(photo_path, "wb") as f:
             f.write(await photo.read())
 
         print(f"\n[PIPELINE] Session: {session_id}")
         print(f"[PIPELINE] Text: {text} | Lang: {target_language}")
 
-        # ── STEP 1: Translate (Bhargavi :8002) ──
+        # ── STEP 1: Translate ──
         print("[PIPELINE] Step 1: Translating...")
         try:
             trans_response = requests.post(
@@ -99,7 +84,7 @@ async def generate_video(
             translated_text = text
         print(f"[PIPELINE] Translated: {translated_text}")
 
-        # ── STEP 2: Emotion + SSML (Soham :8001) ──
+        # ── STEP 2: Emotion + SSML ──
         print("[PIPELINE] Step 2: Detecting emotion...")
         emotion_response = requests.post(
             f"{EMOTION_URL}/enhance-text",
@@ -116,7 +101,7 @@ async def generate_video(
         ssml          = emotion_response.json().get("ssml", translated_text)
         print(f"[PIPELINE] Tone: {detected_tone}")
 
-        # ── STEP 3: Voice Audio (Kshitij :8003) ──
+        # ── STEP 3: Voice Audio ──
         print("[PIPELINE] Step 3: Generating voice audio...")
         voice_response = requests.post(
             f"{VOICE_URL}/synthesize",
@@ -130,7 +115,7 @@ async def generate_video(
             f.write(voice_response.content)
         print(f"[PIPELINE] Audio saved")
 
-        # ── STEP 4: Avatar Video (Tanishka :8004 → Colab SadTalker) ──
+        # ── STEP 4: Avatar Video ──
         print("[PIPELINE] Step 4: Generating avatar video (2-3 min)...")
         with open(photo_path, "rb") as p, open(audio_path, "rb") as a:
             avatar_response = requests.post(
@@ -144,7 +129,6 @@ async def generate_video(
         if avatar_response.status_code != 200:
             raise HTTPException(status_code=500, detail=f"Avatar generation failed: {avatar_response.text}")
 
-        # Save final video
         video_filename = f"{session_id}_avatar.mp4"
         with open(os.path.join("generated_videos", video_filename), "wb") as f:
             f.write(avatar_response.content)
@@ -169,6 +153,72 @@ async def generate_video(
         for f in [photo_path, audio_path]:
             if os.path.exists(f):
                 os.remove(f)
+
+
+# ── DOCUMENT TO TEXT ENDPOINT ──
+@app.post("/document-to-text")
+async def document_to_text(
+    file:       UploadFile = File(default=None),
+    email_text: str        = Form(default=None),
+):
+    """
+    Extract text from PDF/DOCX/TXT or email and summarize into key points.
+
+    Input:
+      - file       : PDF, DOCX or TXT file (optional)
+      - email_text : pasted email text (optional)
+
+    Output:
+      {
+        "success": true,
+        "key_points": ["point1", "point2", ...],
+        "spoken_text": "Full text for avatar to speak",
+        "bullet_summary": "• point1\n• point2",
+        "paragraph_summary": "...",
+        "key_topic": "Main topic",
+        "suggested_tone": "formal",
+        "word_count": 150
+      }
+    """
+    from document_processor import process_document
+
+    session_id = uuid.uuid4().hex
+    file_path  = None
+
+    try:
+        if file and file.filename:
+            file_path = os.path.join(UPLOAD_DIR, f"{session_id}_{file.filename}")
+            with open(file_path, "wb") as f:
+                f.write(await file.read())
+            print(f"[DOC-ENDPOINT] File saved: {file_path}")
+
+        if not file_path and not email_text:
+            raise HTTPException(status_code=400, detail="Please upload a file or paste email text")
+
+        result = process_document(
+            file_path=file_path,
+            email_text=email_text,
+        )
+
+        return JSONResponse({
+            "success":           True,
+            "key_points":        result.get("key_points", []),
+            "spoken_text":       result["spoken_text"],
+            "bullet_summary":    result["bullet_summary"],
+            "paragraph_summary": result["paragraph_summary"],
+            "key_topic":         result["key_topic"],
+            "suggested_tone":    result["suggested_tone"],
+            "word_count":        result["word_count"],
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DOC-ENDPOINT] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
 
 
 # Run with: uvicorn pipeline:app --reload --port 8000
