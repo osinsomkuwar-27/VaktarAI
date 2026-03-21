@@ -1,4 +1,5 @@
 const PIPELINE_URL = 'http://localhost:8000'
+const VOICE_URL = 'http://localhost:8003'
 
 /**
  * generateAvatar
@@ -8,20 +9,20 @@ const PIPELINE_URL = 'http://localhost:8000'
  * @param {string}   text             - speech text
  * @param {Function} onUploadProgress - progress callback (0 to 1)
  * @param {string}   targetLanguage   - language code e.g. 'hi', 'en'
- * @param {string}   toneOverride     - tone e.g. 'formal', 'urgent', 'calm'
+ * @param {string}   speaker          - speaker name e.g. 'shreeja', 'kshitij'
  */
 export async function generateAvatar(
   imageFile,
   text,
   onUploadProgress = () => {},
   targetLanguage = 'hi',
-  toneOverride = null
+  speaker = 'shreeja'
 ) {
   const formData = new FormData()
   formData.append('photo', imageFile)
   formData.append('text', text)
   formData.append('target_language', targetLanguage)
-  if (toneOverride) formData.append('tone_override', toneOverride)
+  formData.append('speaker', speaker)
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -54,6 +55,42 @@ export async function generateAvatar(
     xhr.open('POST', `${PIPELINE_URL}/generate-video`)
     xhr.send(formData)
   })
+}
+
+/**
+ * synthesizeVoice
+ * Directly calls the voice synthesis service
+ *
+ * @param {string} text     - text to synthesize
+ * @param {string} speaker  - speaker name e.g. 'shreeja', 'kshitij'
+ * @returns {Blob}          - audio blob (wav)
+ */
+export async function synthesizeVoice(text, speaker = 'shreeja') {
+  const res = await fetch(`${VOICE_URL}/synthesize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ssml: text, speaker })
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || `Voice synthesis failed: ${res.status}`)
+  }
+
+  return res.blob()
+}
+
+/**
+ * getAvailableSpeakers
+ * Fetches the list of valid speaker names from the voice service
+ *
+ * @returns {string[]} - e.g. ["shreeja", "osin", "soham", ...]
+ */
+export async function getAvailableSpeakers() {
+  const res = await fetch(`${VOICE_URL}/speakers`)
+  if (!res.ok) throw new Error('Could not fetch speakers list')
+  const data = await res.json()
+  return data.speakers
 }
 
 export async function checkHealth() {

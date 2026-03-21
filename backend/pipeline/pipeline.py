@@ -53,6 +53,7 @@ async def generate_video(
     text:            str        = Form(...),
     target_language: str        = Form(default="hi"),
     tone_override:   str        = Form(default=None),
+    speaker:         str        = Form(default="shreeja"),
     photo:           UploadFile = File(...)
 ):
     """
@@ -118,9 +119,10 @@ async def generate_video(
 
         # ── STEP 3: Voice Audio (Kshitij :8003) ──
         print("[PIPELINE] Step 3: Generating voice audio...")
+        print(f"[PIPELINE] Speaker: {speaker}")
         voice_response = requests.post(
             f"{VOICE_URL}/synthesize",
-            json={"ssml": ssml, "detected_tone": detected_tone},
+            json={"ssml": ssml, "speaker": speaker},
             timeout=60
         )
         if voice_response.status_code != 200:

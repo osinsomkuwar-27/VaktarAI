@@ -1,0 +1,18 @@
+{
+  "voices": {
+    "shreeja":  "256fd5ae-c666-4ce4-b356-03a53652e8be",
+    "osin":     "osin-voice-id-here",
+    "soham":    "1bffe875-32ee-490a-badb-8422e13410c8",
+    "kshitij":  "66ff12ac-f6b1-478e-a596-00eca24bd7e9",
+    "tanishka": "0701918b-a29f-4b99-972b-e289a3a5ba2c",
+    "bhargavi": "bhargavi-voice-id-here"
+  },
+  "api_keys": {
+    "osin":     "CARTESIA_API_KEY_A",
+    "soham":    "CARTESIA_API_KEY_A",
+    "kshitij":  "CARTESIA_API_KEY_A",
+    "shreeja":  "CARTESIA_API_KEY_B",
+    "tanishka": "CARTESIA_API_KEY_B",
+    "bhargavi": "CARTESIA_API_KEY_B"
+  }
+}

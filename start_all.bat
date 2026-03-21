@@ -16,7 +16,7 @@ echo Starting Pipeline :8000...
 start "Pipeline :8000" cmd /k "cd /d D:\Coding\aiavatar\backend && .\venv\Scripts\activate && cd pipeline && uvicorn pipeline:app --reload --port 8000"
 
 echo Starting Avatar SadTalker :8004...
-start "Avatar SadTalker :8004" cmd /k "cd /d D:\Coding\aiavatar\avatar_video && .\venv\Scripts\activate && cd SadTalker && ..\venv\Scripts\python.exe -m uvicorn main:app --reload --port 8004"
+start "Avatar SadTalker :8004" cmd /k "cd /d D:\Coding\aiavatar\avatar_video && .\venv\Scripts\activate && cd SadTalker && ..\venv\Scripts\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8004"
 
 echo ================================
 echo All services started!
