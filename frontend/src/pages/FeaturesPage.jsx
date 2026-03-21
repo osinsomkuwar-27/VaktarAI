@@ -43,7 +43,7 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
 
   const [message,          setMessage]          = useState('')
   const [language,         setLanguage]         = useState('English')
-  const [tone,             setTone]             = useState('Professional')
+  const [speaker,          setSpeaker]          = useState('shreeja')
   const [isLoading,        setIsLoading]        = useState(false)
   const [videoUrl,         setVideoUrl]         = useState(null)
   const [isPlaying,        setIsPlaying]        = useState(false)
@@ -54,6 +54,7 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
   const [showCamera,       setShowCamera]       = useState(false)
   const [removingBg,       setRemovingBg]       = useState(false)
   const [bgRemovedPreview, setBgRemovedPreview] = useState(null)
+  const [bgRemoved,        setBgRemoved]        = useState(false)
 
   const videoRef     = useRef(null)
   const fileInputRef = useRef(null)
@@ -107,17 +108,22 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
 
     setImage(file)
     setBgRemovedPreview(null)
+    setBgRemoved(false)
     const reader = new FileReader()
     reader.onload = (e) => setImagePreview(e.target.result)
     reader.readAsDataURL(file)
+  }
 
+  const handleRemoveBg = async () => {
+    if (!image) return
     setRemovingBg(true)
     try {
-      const cleanFile = await removeBackground(file)
+      const cleanFile = await removeBackground(image)
       if (cleanFile) {
         const cleanUrl = URL.createObjectURL(cleanFile)
         setBgRemovedPreview(cleanUrl)
         setImage(cleanFile)
+        setBgRemoved(true)
         addToast('Background removed! ✨', 'success')
       }
     } catch (err) {
@@ -125,6 +131,68 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
     } finally {
       setRemovingBg(false)
     }
+  }
+
+  async function compositeWithBackground(portraitUrl, backgroundObj) {
+    return new Promise((resolve, reject) => {
+      const canvas  = document.createElement('canvas')
+      const ctx     = canvas.getContext('2d')
+      const bgImg   = new Image()
+      const faceImg = new Image()
+
+      bgImg.crossOrigin   = 'anonymous'
+      faceImg.crossOrigin = 'anonymous'
+
+      bgImg.onerror = () => reject(new Error('Failed to load background image'))
+
+      bgImg.onload = () => {
+        // Use background's natural size as canvas size
+        canvas.width  = bgImg.naturalWidth  || bgImg.width
+        canvas.height = bgImg.naturalHeight || bgImg.height
+
+        // Draw background
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height)
+
+        faceImg.onload = () => {
+          // Scale face to fit height, keep aspect ratio, anchor to bottom-center
+          const scale      = canvas.height / faceImg.naturalHeight
+          const faceW      = faceImg.naturalWidth  * scale
+          const faceH      = faceImg.naturalHeight * scale
+          const faceX      = (canvas.width - faceW) / 2
+          const faceY      = canvas.height - faceH
+
+          ctx.drawImage(faceImg, faceX, faceY, faceW, faceH)
+
+          // Use PNG for lossless quality
+          canvas.toBlob(resolve, 'image/png')
+        }
+        faceImg.onerror = () => reject(new Error('Failed to load portrait image'))
+        faceImg.src = portraitUrl
+      }
+
+      // Handle color backgrounds
+      if (backgroundObj.type === 'color') {
+        canvas.width  = 1280
+        canvas.height = 720
+        ctx.fillStyle = backgroundObj.color
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        const faceImg2 = new Image()
+        faceImg2.crossOrigin = 'anonymous'
+        faceImg2.onload = () => {
+          const scale = canvas.height / faceImg2.naturalHeight
+          const faceW = faceImg2.naturalWidth  * scale
+          const faceH = faceImg2.naturalHeight * scale
+          const faceX = (canvas.width - faceW) / 2
+          const faceY = canvas.height - faceH
+          ctx.drawImage(faceImg2, faceX, faceY, faceW, faceH)
+          canvas.toBlob(resolve, 'image/png')
+        }
+        faceImg2.src = portraitUrl
+        return
+      }
+
+      bgImg.src = backgroundObj.image
+    })
   }
 
   const handleGenerate = async () => {
@@ -141,11 +209,20 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
         setGenProgress(prev => prev >= 90 ? prev : prev + Math.random() * 2)
       }, 1000)
 
+      // ✅ Composite only if bg was removed AND a background is selected
+      let photoToSend = image
+      if (selectedBackground && bgRemovedPreview && bgRemoved) {
+        addToast('Compositing background…', 'info')
+        const composited = await compositeWithBackground(bgRemovedPreview, selectedBackground)
+        photoToSend = new File([composited], 'portrait_with_bg.png', { type: 'image/png' })
+      }
+
       const data = await generateAvatar(
-        image, message,
+        photoToSend,
+        message,
         (pct) => setGenProgress(Math.round(pct * 20)),
         LANGUAGE_MAP[language] || 'en',
-        TONE_MAP[tone] || null
+        speaker
       )
 
       clearInterval(interval)
@@ -179,6 +256,7 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
   }
 
   const displayPreview = bgRemovedPreview || imagePreview
+  const activeSpeaker  = SPEAKERS.find(s => s.key === speaker)
 
   return (
     <div style={s.page}>
@@ -335,14 +413,26 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
                   )}
                 </div>
                 <div style={s.photoMeta}>
-                  <span style={{ fontSize:11, color: bgRemovedPreview ? '#10d9a0' : '#fbbf24', fontWeight:600 }}>
-                    {removingBg ? '⏳ Removing background…' : bgRemovedPreview ? '✓ Background removed!' : '✓ Photo ready'}
+                  <span style={{ fontSize:11, color: bgRemoved ? '#10d9a0' : '#fbbf24', fontWeight:600 }}>
+                    {bgRemoved ? '✓ Background removed!' : '✓ Photo ready'}
                   </span>
                   <span style={{ fontSize:10, color:'var(--text-muted)', marginTop:2 }}>{image?.name}</span>
                   <div style={{ display:'flex', gap:6, marginTop:6 }}>
                     <button onClick={() => fileInputRef.current?.click()} style={s.miniBtn}>Upload</button>
                     <button onClick={() => setShowCamera(true)} style={{ ...s.miniBtn, borderColor:'rgba(79,142,255,0.4)', color:'#7aadff' }}>Retake</button>
-                    <button onClick={() => { setImage(null); setImagePreview(null); setBgRemovedPreview(null) }} style={{ ...s.miniBtn, borderColor:'rgba(248,113,113,0.3)', color:'#f87171' }}>Remove</button>
+                    {!bgRemoved && (
+                      <button
+                        onClick={handleRemoveBg}
+                        disabled={removingBg}
+                        style={{ ...s.miniBtn, borderColor:'rgba(167,139,250,0.4)', color:'#a78bfa', opacity: removingBg ? 0.6 : 1 }}
+                      >
+                        {removingBg ? '⏳ Removing…' : '✨ Remove BG'}
+                      </button>
+                    )}
+                    {bgRemoved && (
+                      <span style={{ ...s.miniBtn, borderColor:'rgba(16,217,160,0.4)', color:'#10d9a0', cursor:'default' }}>✓ BG Removed</span>
+                    )}
+                    <button onClick={() => { setImage(null); setImagePreview(null); setBgRemovedPreview(null); setBgRemoved(false) }} style={{ ...s.miniBtn, borderColor:'rgba(248,113,113,0.3)', color:'#f87171' }}>Remove</button>
                   </div>
                 </div>
               </div>
@@ -378,7 +468,7 @@ export default function FeaturesPage({ addToast, selectedBackground }) {
                   <p style={{ fontSize:12, color:'var(--text-muted)', margin:0 }}>
                     <strong style={{ color:'var(--text-secondary)' }}>Click or drag</strong> to upload portrait
                   </p>
-                  <p style={{ fontSize:10, color:'var(--text-muted)', margin:0 }}>JPG · PNG · WebP — max 10 MB · BG auto-removed ✨</p>
+                  <p style={{ fontSize:10, color:'var(--text-muted)', margin:0 }}>JPG · PNG · WebP — max 10 MB</p>
                 </div>
               </>
             )}
