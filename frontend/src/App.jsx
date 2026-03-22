@@ -7,14 +7,11 @@ import FeaturesPage   from './pages/FeaturesPage'
 import HistoryPage    from './pages/HistoryPage'
 import LoginPage      from './pages/LoginPage'
 import BackgroundPage from './pages/BackgroundPage'
+import ChatPage       from './pages/ChatPage'
 
 export default function App() {
   const [toasts, setToasts] = useState([])
-
-  // ── Shared background state across tabs ──
   const [selectedBackground, setSelectedBackground] = useState(null)
-  // selectedBackground shape:
-  // { type: 'preset'|'color'|'upload', image: url|null, color: hex|null, label: string }
 
   const addToast = useCallback((message, type = 'info') => {
     const id = Date.now() + Math.random()
@@ -31,16 +28,17 @@ export default function App() {
       <Navbar />
       <main style={{ flex: 1 }}>
         <Routes>
-          <Route path="/"         element={<Navigate to="/create" replace />} />
-          <Route path="/create"   element={<CreatePage   addToast={addToast} />} />
-          <Route path="/features" element={
+          <Route path="/"           element={<Navigate to="/create" replace />} />
+          <Route path="/create"     element={<CreatePage   addToast={addToast} />} />
+          <Route path="/chat"       element={<ChatPage     addToast={addToast} />} />
+          <Route path="/features"   element={
             <FeaturesPage
               addToast={addToast}
               selectedBackground={selectedBackground}
             />}
           />
-          <Route path="/history"  element={<HistoryPage  addToast={addToast} />} />
-          <Route path="/login"    element={<LoginPage    addToast={addToast} />} />
+          <Route path="/history"    element={<HistoryPage  addToast={addToast} />} />
+          <Route path="/login"      element={<LoginPage    addToast={addToast} />} />
           <Route path="/background" element={
             <BackgroundPage
               addToast={addToast}
