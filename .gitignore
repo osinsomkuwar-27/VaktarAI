@@ -26,6 +26,7 @@ backend/pipeline/uploads/
 backend/*/uploads/
 backend/*/outputs/
 backend/voice_synthesis/outputs/
+backend/caption_engine
 output.wav
 output.mp3
 photo.png
