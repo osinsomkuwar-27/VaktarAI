@@ -7,12 +7,13 @@ Full flow:
        → Emotion/SSML (Soham :8001)
        → Voice (Kshitij :8003)
        → Avatar Video (Tanishka :8004)
+       → Captions burned onto video (caption_engine)
        → Video URL returned to frontend
 
 Q&A flow (new):
   Question → ai_brain :8005 (Groq/Ollama)
            → answer text
-           → Translation → Emotion → Voice → Avatar
+           → Translation → Emotion → Voice → Avatar → Captions
            → Video URL + answer returned to frontend
 """
 
@@ -28,8 +29,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Add parent directory to path so document_processor can be imported
+# Add parent directory to path so document_processor and caption_engine can be imported
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
+from caption_engine.caption import add_captions
 
 app = FastAPI(title="AI Avatar Master Pipeline", version="1.0.0")
 
@@ -139,10 +142,22 @@ async def generate_video(
             raise HTTPException(status_code=500, detail=f"Avatar generation failed: {avatar_response.text}")
 
         video_filename = f"{session_id}_avatar.mp4"
-        with open(os.path.join("generated_videos", video_filename), "wb") as f:
+        video_filepath = os.path.join("generated_videos", video_filename)
+        with open(video_filepath, "wb") as f:
             f.write(avatar_response.content)
+        print(f"[PIPELINE] Avatar video saved")
 
-        video_url = f"http://localhost:8000/videos/{video_filename}"
+        # ── STEP 5: Burn captions ──
+        # translated_text is used so captions match the language the avatar speaks
+        print("[PIPELINE] Step 5: Burning captions...")
+        captioned_filepath = os.path.join("generated_videos", f"{session_id}_captioned.mp4")
+        final_video = add_captions(
+            video_path=video_filepath,
+            text=translated_text,
+            output_path=captioned_filepath
+        )
+
+        video_url = f"http://localhost:8000/videos/{os.path.basename(final_video)}"
         print(f"[PIPELINE] Done! {video_url}")
 
         return JSONResponse({
@@ -172,22 +187,6 @@ async def document_to_text(
 ):
     """
     Extract text from PDF/DOCX/TXT or email and summarize into key points.
-
-    Input:
-      - file       : PDF, DOCX or TXT file (optional)
-      - email_text : pasted email text (optional)
-
-    Output:
-      {
-        "success": true,
-        "key_points": ["point1", "point2", ...],
-        "spoken_text": "Full text for avatar to speak",
-        "bullet_summary": "• point1\n• point2",
-        "paragraph_summary": "...",
-        "key_topic": "Main topic",
-        "suggested_tone": "formal",
-        "word_count": 150
-      }
     """
     from document_processor import process_document
 
@@ -238,33 +237,11 @@ async def ask_and_generate(
     speaker:         str        = Form(default="shreeja"),
     photo:           UploadFile = File(...)
 ):
-    """
-    Q&A endpoint. Frontend sends a question + photo.
-    ai_brain answers it, then the full pipeline makes the avatar video.
-
-    Input:
-      - question        : user's question text
-      - target_language : language code (default "en")
-      - speaker         : voice speaker name (default "shreeja")
-      - photo           : avatar face image
-
-    Output:
-      {
-        "success":         true,
-        "video_url":       "http://localhost:8000/videos/xxx.mp4",
-        "answer":          "The answer from Groq/Ollama",
-        "llm_source":      "groq" | "ollama",
-        "detected_tone":   "formal",
-        "translated_text": "...",
-        "session_id":      "..."
-      }
-    """
     session_id = uuid.uuid4().hex
     photo_path = os.path.join(UPLOAD_DIR, f"{session_id}_photo.png")
     audio_path = os.path.join(UPLOAD_DIR, f"{session_id}_audio.wav")
 
     try:
-        # Save photo
         with open(photo_path, "wb") as f:
             f.write(await photo.read())
 
@@ -355,10 +332,22 @@ async def ask_and_generate(
             )
 
         video_filename = f"{session_id}_avatar.mp4"
-        with open(os.path.join("generated_videos", video_filename), "wb") as f:
+        video_filepath = os.path.join("generated_videos", video_filename)
+        with open(video_filepath, "wb") as f:
             f.write(avatar_response.content)
+        print(f"[PIPELINE] Avatar video saved")
 
-        video_url = f"http://localhost:8000/videos/{video_filename}"
+        # ── STEP 5: Burn captions ─────────────────────────────────────────────
+        # translated_text is used so captions match the language the avatar speaks
+        print("[PIPELINE] Step 5: Burning captions...")
+        captioned_filepath = os.path.join("generated_videos", f"{session_id}_captioned.mp4")
+        final_video = add_captions(
+            video_path=video_filepath,
+            text=translated_text,
+            output_path=captioned_filepath
+        )
+
+        video_url = f"http://localhost:8000/videos/{os.path.basename(final_video)}"
         print(f"[PIPELINE] Done! {video_url}")
 
         return JSONResponse({
