@@ -27,6 +27,7 @@ app.add_middleware(
 # Directories — relative to SadTalker folder
 UPLOAD_DIR = "uploads"
 RESULT_DIR = "results"
+WATERMARK_PATH = "watermark.png"  # Place watermark.png in the SadTalker root folder
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RESULT_DIR, exist_ok=True)
@@ -45,6 +46,25 @@ def convert_audio(input_path: str) -> str:
         "-ac", "1",          # mono
         "-ar", "16000",      # 16kHz sample rate
         "-sample_fmt", "s16", # 16-bit PCM
+        output_path
+    ], check=True, capture_output=True)
+    return output_path
+
+
+def add_watermark(video_path: str, watermark_path: str) -> str:
+    """
+    Overlay a watermark image onto the bottom-right corner of the video.
+    Watermark is scaled to 20% of video width and made semi-transparent.
+    """
+    output_path = video_path.replace(".mp4", "_watermarked.mp4")
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-i", watermark_path,
+        "-filter_complex",
+        "[1:v]scale=iw*0.12:-1,format=rgba,colorchannelmixer=aa=0.75[wm];"
+        "[0:v][wm]overlay=W-w-10:10",
+        "-codec:a", "copy",
         output_path
     ], check=True, capture_output=True)
     return output_path
@@ -145,7 +165,16 @@ async def generate_avatar(
         final_video = merge_audio_into_video(generated_video, fixed_audio)
         print(f"[AVATAR] Final video: {final_video}")
 
-        # ── Step 6: Return video to pipeline ──
+        # ── Step 6: Add watermark ──
+        print("[AVATAR] Adding watermark...")
+        if os.path.exists(WATERMARK_PATH):
+            watermarked_video = add_watermark(final_video, WATERMARK_PATH)
+            final_video = watermarked_video
+            print(f"[AVATAR] Watermarked video: {final_video}")
+        else:
+            print(f"[AVATAR] Watermark not found at '{WATERMARK_PATH}', skipping.")
+
+        # ── Step 7: Return video to pipeline ──
         return FileResponse(
             final_video,
             media_type="video/mp4",
