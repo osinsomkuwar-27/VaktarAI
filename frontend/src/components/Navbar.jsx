@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom'
 import { useState } from 'react'
 
 const NAV_LINKS = [
-  { to: '/create', label: 'Create Avatar' },
+  { to: '/create',  label: 'Create Avatar' },
+  { to: '/chat',    label: 'AI Chat' },
   { to: '/background', label: 'Background' },
   { to: '/features', label: 'Features' },
   { to: '/history', label: 'History' },
@@ -36,6 +37,9 @@ export default function Navbar() {
               style={({ isActive }) => ({
                 ...styles.link,
                 ...(isActive ? styles.linkActive : {}),
+                // Special highlight for AI Chat
+                ...(to === '/chat' ? styles.chatLink : {}),
+                ...(to === '/chat' && isActive ? styles.chatLinkActive : {}),
               })}
             >
               {label}
@@ -134,7 +138,6 @@ const styles = {
   links: {
     display: 'flex',
     gap: 4,
-    '@media(max-width:768px)': { display: 'none' },
   },
   link: {
     fontFamily: 'var(--font-body)',
@@ -149,6 +152,16 @@ const styles = {
   linkActive: {
     color: 'var(--text-primary)',
     background: 'rgba(79,142,255,0.1)',
+  },
+  // Special style for AI Chat nav item
+  chatLink: {
+    color: 'var(--accent)',
+    background: 'rgba(79,142,255,0.08)',
+    border: '1px solid rgba(79,142,255,0.2)',
+  },
+  chatLinkActive: {
+    background: 'rgba(79,142,255,0.18)',
+    border: '1px solid rgba(79,142,255,0.4)',
   },
   actions: {
     display: 'flex',
@@ -167,6 +180,7 @@ const styles = {
     padding: '8px 18px',
     cursor: 'pointer',
     transition: 'opacity 0.2s, transform 0.2s',
+    textDecoration: 'none',
   },
   hamburger: {
     display: 'none',
