@@ -4,7 +4,7 @@ ai_brain/brain.py
 All LLM logic lives here.
 
   WiFi up      →  Groq  (free, fast, no region restrictions)
-  WiFi down    →  Ollama local (fully offline)
+  WiFi down    →  Ollama local  (fully offline)
   Groq fails   →  auto-fallback to Ollama
 
 Imported by main.py — do not run this file directly.
@@ -21,7 +21,39 @@ GROQ_API_KEY     = os.getenv("GROQ_API_KEY",      "")
 GROQ_MODEL       = os.getenv("GROQ_MODEL",        "llama-3.3-70b-versatile")
 OLLAMA_HOST      = os.getenv("OLLAMA_HOST",       "http://localhost:11434")
 OLLAMA_MODEL     = os.getenv("OLLAMA_MODEL",      "phi3")
-MAX_ANSWER_WORDS = int(os.getenv("MAX_ANSWER_WORDS", "40"))
+MAX_ANSWER_WORDS = int(os.getenv("MAX_ANSWER_WORDS", "5"))
+
+SYSTEM_PROMPT = (
+    "You are the AI avatar of VaktarAI, an AI-powered avatar generation platform that lets users "
+    "create hyper-realistic or stylized digital avatars from text descriptions or uploaded reference photos. "
+    "VaktarAI targets creators, gamers, developers, and brands who need custom digital identities quickly. "
+    "\n\n"
+    "Key features of VaktarAI:\n"
+    "- Instant generation in under 8 seconds from prompt to avatar\n"
+    "- 50+ artistic style presets including cyberpunk, anime, realism, pixel art, fantasy, gothic, and more\n"
+    "- Face consistency lock that keeps identity stable across different styles and angles\n"
+    "- Natural language expression control to adjust mood, age, lighting, and background without sliders\n"
+    "- Multiple export formats including PNG, SVG, 4K resolution, and game-ready assets\n"
+    "- Developer REST API with SDKs and webhook support\n"
+    "- Team workspace for up to 10 members on the Studio plan\n"
+    "- Custom model fine-tuning on the Studio tier\n"
+    "- Privacy-first encrypted processing — photos are never stored or used for training\n"
+    "\n"
+    "Advantages:\n"
+    "- Very fast turnaround compared to manual design or traditional AI workflows\n"
+    "- No design skills required — fully natural language driven\n"
+    "- Covers a wide range of use cases: profiles, games, NFTs, branding, and product integration\n"
+    "- Commercial license included on paid plans\n"
+    "- API-first approach makes it easy to embed into other products\n"
+    "- Consistent identity across outputs is a genuine differentiator\n"
+    "\n"
+    "This project was built by a team of six — Osin, Kshitij, Shreeja, Tanishka, Soham, and Bhargavi — "
+    "who are participating in the India Innovates Hackathon and have been selected for the next round "
+    "at Bharat Mandapam. "
+    "\n\n"
+    "Answer all questions confidently and enthusiastically as a representative of VaktarAI. "
+    "Your response will be spoken aloud by an avatar so keep it natural and conversational."
+)
 
 
 # ── WiFi check ────────────────────────────────────────────────────────────────
@@ -52,31 +84,21 @@ def trim_answer(text: str) -> str:
     if len(words) <= MAX_ANSWER_WORDS:
         return text
 
-    # Cut at word limit
     trimmed = " ".join(words[:MAX_ANSWER_WORDS])
 
-    # Try to end at a clean sentence boundary (. ! ?)
     for punct in [".", "!", "?"]:
         last = trimmed.rfind(punct)
         if last != -1:
             return trimmed[:last + 1]
 
-    # No sentence boundary found — just add ellipsis
     return trimmed + "..."
 
 
-# ── Groq (online) ─────────────────────────────────────────────────────────────
+# ── Gemini (online) ───────────────────────────────────────────────────────────
 
 async def ask_groq(question: str) -> str:
     if not GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY not set in .env")
-
-    # Tell the model to keep answers concise for avatar delivery
-    system_prompt = (
-        f"You are a helpful assistant. "
-        f"Keep your answer under {MAX_ANSWER_WORDS} words. "
-        f"Be clear and concise — your response will be spoken aloud by an avatar."
-    )
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(
@@ -88,7 +110,7 @@ async def ask_groq(question: str) -> str:
             json={
                 "model": GROQ_MODEL,
                 "messages": [
-                    {"role": "system", "content": system_prompt},
+                    {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user",   "content": question},
                 ],
             },
@@ -101,9 +123,9 @@ async def ask_groq(question: str) -> str:
 
 async def ask_ollama(question: str) -> str:
     prompt = (
-        f"Answer in under {MAX_ANSWER_WORDS} words. "
-        f"Be clear and concise — your response will be spoken aloud by an avatar.\n\n"
-        f"{question}"
+        f"{SYSTEM_PROMPT}\n\n"
+        f"Answer in under {MAX_ANSWER_WORDS} words.\n\n"
+        f"Question: {question}"
     )
     async with httpx.AsyncClient(timeout=120.0) as client:
         r = await client.post(
@@ -126,14 +148,14 @@ async def ask(question: str) -> dict:
     Fallback chain:
         1. WiFi up     → try Groq
         2. Groq fails  → fallback to Ollama
-        3. Both fail   → raise RuntimeError
+        3. Both fail     → raise RuntimeError
     """
     online  = await has_internet()
     primary = "groq" if online else "ollama"
 
     try:
         answer = await ask_groq(question) if online else await ask_ollama(question)
-        answer = trim_answer(answer)    # enforce word limit as hard cap
+        answer = trim_answer(answer)
         return {"answer": answer, "source": primary}
 
     except Exception as e1:
