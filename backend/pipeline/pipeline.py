@@ -43,6 +43,7 @@ EMOTION_URL     = os.getenv("EMOTION_URL",     "http://localhost:8001")
 TRANSLATION_URL = os.getenv("TRANSLATION_URL", "http://localhost:8002")
 VOICE_URL       = os.getenv("VOICE_URL",       "http://localhost:8003")
 AVATAR_URL      = os.getenv("AVATAR_URL",      "http://localhost:8004")
+CAPTION_URL     = os.getenv("CAPTION_URL",     "http://localhost:8005")
 
 UPLOAD_DIR = "uploads"
 
@@ -68,22 +69,42 @@ async def generate_video(
         with open(photo_path, "wb") as f:
             f.write(await photo.read())
 
+        # Keep the user's original text (exactly as typed) — used for English captions
+        original_text = text.strip()
+
         print(f"\n[PIPELINE] Session: {session_id}")
-        print(f"[PIPELINE] Text: {text} | Lang: {target_language}")
+        print(f"[PIPELINE] Original text: {original_text}")
+        print(f"[PIPELINE] Target language: {target_language}")
 
         # ── STEP 1: Translate ──
-        print("[PIPELINE] Step 1: Translating...")
-        try:
-            trans_response = requests.post(
-                f"{TRANSLATION_URL}/translate",
-                json={"text": text, "target_language": target_language},
-                timeout=30
-            )
-            translated_text = trans_response.json().get("translated_text", text)
-        except Exception as e:
-            print(f"[PIPELINE] Translation failed, using original: {e}")
-            translated_text = text
+        # If English → skip translation, keep original text as-is
+        # If other language → translate to get perfect target-language text
+        if target_language in ("en", "auto", None, ""):
+            print("[PIPELINE] Step 1: English — skipping translation")
+            translated_text = original_text
+        else:
+            print(f"[PIPELINE] Step 1: Translating to {target_language}...")
+            try:
+                trans_response = requests.post(
+                    f"{TRANSLATION_URL}/translate",
+                    json={"text": original_text, "target_language": target_language},
+                    timeout=30
+                )
+                translated_text = trans_response.json().get("translated_text", original_text)
+            except Exception as e:
+                print(f"[PIPELINE] Translation failed, using original: {e}")
+                translated_text = original_text
         print(f"[PIPELINE] Translated: {translated_text}")
+
+        # ── Caption text decision ──
+        # English → use user's exact original text (zero corruption)
+        # Other language → use translated text from Step 1 (already perfect)
+        if target_language in ("en", "auto", None, ""):
+            caption_text = original_text
+            print(f"[PIPELINE] Caption text: original English")
+        else:
+            caption_text = translated_text
+            print(f"[PIPELINE] Caption text: translated {target_language}")
 
         # ── STEP 2: Emotion + SSML ──
         print("[PIPELINE] Step 2: Detecting emotion...")
@@ -132,8 +153,41 @@ async def generate_video(
             raise HTTPException(status_code=500, detail=f"Avatar generation failed: {avatar_response.text}")
 
         video_filename = f"{session_id}_avatar.mp4"
-        with open(os.path.join("generated_videos", video_filename), "wb") as f:
+        video_path = os.path.join("generated_videos", video_filename)
+        with open(video_path, "wb") as f:
             f.write(avatar_response.content)
+
+        # Save caption text alongside video (for standalone captioning)
+        text_path = os.path.join("generated_videos", f"{session_id}_avatar_text.txt")
+        with open(text_path, "w", encoding="utf-8") as f:
+            f.write(caption_text)
+        print(f"[PIPELINE] Caption text saved: {text_path}")
+
+        # ── STEP 5: Add Captions (using known text — zero typos) ──
+        # caption_text = original English OR translated Hindi/Marathi/etc.
+        # No Whisper, no re-translation — just burn the exact text we already have
+        print(f"[PIPELINE] Step 5: Adding captions ({len(caption_text.split())} words)...")
+        captioned_filename = f"{session_id}_avatar_captioned.mp4"
+        captioned_path = os.path.join("generated_videos", captioned_filename)
+        try:
+            caption_response = requests.post(
+                f"{CAPTION_URL}/add-captions",
+                json={
+                    "video_path": os.path.abspath(video_path),
+                    "translated_ssml": caption_text,
+                    "output_path": os.path.abspath(captioned_path),
+                    "target_language": target_language,
+                    "font_size": 16,
+                },
+                timeout=120
+            )
+            if caption_response.status_code == 200:
+                video_filename = captioned_filename
+                print(f"[PIPELINE] Captions added ✅")
+            else:
+                print(f"[PIPELINE] Caption service returned {caption_response.status_code}, using uncaptioned video")
+        except Exception as e:
+            print(f"[PIPELINE] Caption service unavailable ({e}), using uncaptioned video")
 
         video_url = f"http://localhost:8000/videos/{video_filename}"
         print(f"[PIPELINE] Done! {video_url}")
@@ -142,10 +196,13 @@ async def generate_video(
             "success":         True,
             "video_url":       video_url,
             "detected_tone":   detected_tone,
+            "original_text":   original_text,
             "translated_text": translated_text,
+            "caption_text":    caption_text,
             "ssml":            ssml,
             "session_id":      session_id
         })
+
 
     except HTTPException:
         raise
