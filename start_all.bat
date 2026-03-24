@@ -22,7 +22,10 @@ start "Avatar SadTalker :8004" cmd /k "cd /d D:\Coding\aiavatar\avatar_video && 
  
 echo Starting AI Brain :8005...
 start "AI Brain :8005" cmd /k "cd /d D:\Coding\aiavatar\backend && .\venv\Scripts\activate && cd ai_brain && uvicorn main:app --reload --port 8005"
- 
+
+echo Starting Caption Engine :8006...
+start "Caption Engine :8006" cmd /k "cd /d D:\Coding\aiavatar\backend && .\venv\Scripts\activate && cd captions && uvicorn main:app --reload --port 8006"
+
 echo ================================
 echo All services started!
 echo ================================
@@ -34,5 +37,6 @@ echo   Translation     : http://localhost:8002
 echo   Voice Synthesis : http://localhost:8003
 echo   Avatar SadTalker: http://localhost:8004
 echo   AI Brain        : http://localhost:8005
+echo   Captions        : http://localhost:8006
 echo.
 pause
