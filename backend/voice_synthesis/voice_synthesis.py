@@ -8,7 +8,15 @@ import re
 import json
 from dotenv import load_dotenv
 
-load_dotenv()
+_dir = os.path.dirname(os.path.abspath(__file__))
+for _i in range(5):
+    _env = os.path.join(_dir, ".env")
+    if os.path.exists(_env):
+        load_dotenv(_env)
+        break
+    _dir = os.path.dirname(_dir)
+else:
+    load_dotenv()
 
 app = FastAPI(title="AI Avatar Voice Synthesis")
 

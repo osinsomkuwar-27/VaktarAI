@@ -7,12 +7,13 @@ Full flow:
        → Emotion/SSML (Soham :8001)
        → Voice (Kshitij :8003)
        → Avatar Video (Tanishka :8004)
+       → Captions (captions :8006)
        → Video URL returned to frontend
 
-Q&A flow (new):
-  Question → ai_brain :8005 (Groq/Ollama)
+Q&A flow:
+  Question → ai_brain :8005 (Gemini/Ollama)
            → answer text
-           → Translation → Emotion → Voice → Avatar
+           → Translation → Emotion → Voice → Avatar → Captions
            → Video URL + answer returned to frontend
 """
 
@@ -50,14 +51,62 @@ TRANSLATION_URL = os.getenv("TRANSLATION_URL", "http://localhost:8002")
 VOICE_URL       = os.getenv("VOICE_URL",       "http://localhost:8003")
 AVATAR_URL      = os.getenv("AVATAR_URL",      "http://localhost:8004")
 AI_BRAIN_URL    = os.getenv("AI_BRAIN_URL",    "http://localhost:8005")
+CAPTION_URL     = os.getenv("CAPTION_URL",     "http://localhost:8006")
 
 UPLOAD_DIR = "uploads"
 
+
+# ── Caption helper ─────────────────────────────────────────────────────────────
+
+def add_captions_via_service(video_path: str, caption_text: str, target_language: str, session_id: str) -> str:
+    """
+    Calls captions service on :8006 to burn captions onto video.
+    Returns the captioned video filename, or original filename if captioning fails.
+    Pipeline never breaks even if captions service is down.
+    """
+    captioned_filename = f"{session_id}_avatar_captioned.mp4"
+    captioned_path     = os.path.join("generated_videos", captioned_filename)
+
+    # Save caption text as sidecar file (captions service can also read this)
+    text_path = os.path.join("generated_videos", f"{session_id}_avatar_text.txt")
+    try:
+        with open(text_path, "w", encoding="utf-8") as f:
+            f.write(caption_text)
+    except Exception:
+        pass
+
+    try:
+        caption_response = requests.post(
+            f"{CAPTION_URL}/add-captions",
+            json={
+                "video_path":      os.path.abspath(video_path),
+                "translated_ssml": caption_text,
+                "output_path":     os.path.abspath(captioned_path),
+                "target_language": target_language,
+                "font_size":       16,
+            },
+            timeout=120
+        )
+        if caption_response.status_code == 200:
+            print(f"[PIPELINE] Captions added ✅")
+            return captioned_filename
+        else:
+            print(f"[PIPELINE] Caption service returned {caption_response.status_code}, using uncaptioned video")
+            return os.path.basename(video_path)
+
+    except Exception as e:
+        print(f"[PIPELINE] Caption service unavailable ({e}), using uncaptioned video")
+        return os.path.basename(video_path)
+
+
+# ── Health ─────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
     return {"status": "Pipeline running", "port": 8000}
 
+
+# ── /generate-video ────────────────────────────────────────────────────────────
 
 @app.post("/generate-video")
 async def generate_video(
@@ -75,22 +124,31 @@ async def generate_video(
         with open(photo_path, "wb") as f:
             f.write(await photo.read())
 
+        original_text = text.strip()
         print(f"\n[PIPELINE] Session: {session_id}")
-        print(f"[PIPELINE] Text: {text} | Lang: {target_language}")
+        print(f"[PIPELINE] Original text: {original_text} | Lang: {target_language}")
 
         # ── STEP 1: Translate ──
-        print("[PIPELINE] Step 1: Translating...")
-        try:
-            trans_response = requests.post(
-                f"{TRANSLATION_URL}/translate",
-                json={"text": text, "target_language": target_language},
-                timeout=30
-            )
-            translated_text = trans_response.json().get("translated_text", text)
-        except Exception as e:
-            print(f"[PIPELINE] Translation failed, using original: {e}")
-            translated_text = text
+        if target_language in ("en", "auto", None, ""):
+            print("[PIPELINE] Step 1: English — skipping translation")
+            translated_text = original_text
+        else:
+            print(f"[PIPELINE] Step 1: Translating to {target_language}...")
+            try:
+                trans_response = requests.post(
+                    f"{TRANSLATION_URL}/translate",
+                    json={"text": original_text, "target_language": target_language},
+                    timeout=30
+                )
+                translated_text = trans_response.json().get("translated_text", original_text)
+            except Exception as e:
+                print(f"[PIPELINE] Translation failed, using original: {e}")
+                translated_text = original_text
         print(f"[PIPELINE] Translated: {translated_text}")
+
+        # Caption text — English uses original, others use translated
+        caption_text = original_text if target_language in ("en", "auto", None, "") else translated_text
+        print(f"[PIPELINE] Caption text set ({target_language})")
 
         # ── STEP 2: Emotion + SSML ──
         print("[PIPELINE] Step 2: Detecting emotion...")
@@ -139,8 +197,19 @@ async def generate_video(
             raise HTTPException(status_code=500, detail=f"Avatar generation failed: {avatar_response.text}")
 
         video_filename = f"{session_id}_avatar.mp4"
-        with open(os.path.join("generated_videos", video_filename), "wb") as f:
+        video_path     = os.path.join("generated_videos", video_filename)
+        with open(video_path, "wb") as f:
             f.write(avatar_response.content)
+        print(f"[PIPELINE] Avatar video saved")
+
+        # ── STEP 5: Captions via :8006 ──
+        print(f"[PIPELINE] Step 5: Adding captions via :8006...")
+        video_filename = add_captions_via_service(
+            video_path=video_path,
+            caption_text=caption_text,
+            target_language=target_language,
+            session_id=session_id
+        )
 
         video_url = f"http://localhost:8000/videos/{video_filename}"
         print(f"[PIPELINE] Done! {video_url}")
@@ -149,7 +218,9 @@ async def generate_video(
             "success":         True,
             "video_url":       video_url,
             "detected_tone":   detected_tone,
+            "original_text":   original_text,
             "translated_text": translated_text,
+            "caption_text":    caption_text,
             "ssml":            ssml,
             "session_id":      session_id
         })
@@ -164,7 +235,8 @@ async def generate_video(
                 os.remove(f)
 
 
-# ── DOCUMENT TO TEXT ENDPOINT ──────────────────────────────────────────────────
+# ── /document-to-text ──────────────────────────────────────────────────────────
+
 @app.post("/document-to-text")
 async def document_to_text(
     file:       UploadFile = File(default=None),
@@ -172,22 +244,6 @@ async def document_to_text(
 ):
     """
     Extract text from PDF/DOCX/TXT or email and summarize into key points.
-
-    Input:
-      - file       : PDF, DOCX or TXT file (optional)
-      - email_text : pasted email text (optional)
-
-    Output:
-      {
-        "success": true,
-        "key_points": ["point1", "point2", ...],
-        "spoken_text": "Full text for avatar to speak",
-        "bullet_summary": "• point1\n• point2",
-        "paragraph_summary": "...",
-        "key_topic": "Main topic",
-        "suggested_tone": "formal",
-        "word_count": 150
-      }
     """
     from document_processor import process_document
 
@@ -230,7 +286,8 @@ async def document_to_text(
             os.remove(file_path)
 
 
-# ── ASK AND GENERATE ENDPOINT ──────────────────────────────────────────────────
+# ── /ask-and-generate ──────────────────────────────────────────────────────────
+
 @app.post("/ask-and-generate")
 async def ask_and_generate(
     question:        str        = Form(...),
@@ -241,37 +298,19 @@ async def ask_and_generate(
     """
     Q&A endpoint. Frontend sends a question + photo.
     ai_brain answers it, then the full pipeline makes the avatar video.
-
-    Input:
-      - question        : user's question text
-      - target_language : language code (default "en")
-      - speaker         : voice speaker name (default "shreeja")
-      - photo           : avatar face image
-
-    Output:
-      {
-        "success":         true,
-        "video_url":       "http://localhost:8000/videos/xxx.mp4",
-        "answer":          "The answer from Groq/Ollama",
-        "llm_source":      "groq" | "ollama",
-        "detected_tone":   "formal",
-        "translated_text": "...",
-        "session_id":      "..."
-      }
     """
     session_id = uuid.uuid4().hex
     photo_path = os.path.join(UPLOAD_DIR, f"{session_id}_photo.png")
     audio_path = os.path.join(UPLOAD_DIR, f"{session_id}_audio.wav")
 
     try:
-        # Save photo
         with open(photo_path, "wb") as f:
             f.write(await photo.read())
 
         print(f"\n[PIPELINE] /ask-and-generate session: {session_id}")
         print(f"[PIPELINE] Question: {question}")
 
-        # ── STEP 0: Get answer from ai_brain ──────────────────────────────────
+        # ── STEP 0: ai_brain ──────────────────────────────────────────────────
         print("[PIPELINE] Step 0: Getting answer from ai_brain :8005...")
         brain_response = requests.post(
             f"{AI_BRAIN_URL}/ask",
@@ -279,29 +318,32 @@ async def ask_and_generate(
             timeout=30
         )
         if brain_response.status_code != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"ai_brain failed: {brain_response.text}"
-            )
+            raise HTTPException(status_code=500, detail=f"ai_brain failed: {brain_response.text}")
 
         brain_data = brain_response.json()
         answer     = brain_data.get("answer", "")
         llm_source = brain_data.get("source", "unknown")
         print(f"[PIPELINE] Answer from {llm_source}: {answer[:80]}...")
 
-        # ── STEP 1: Translate answer ──────────────────────────────────────────
+        # ── STEP 1: Translate ─────────────────────────────────────────────────
         print("[PIPELINE] Step 1: Translating...")
-        try:
-            trans_response = requests.post(
-                f"{TRANSLATION_URL}/translate",
-                json={"text": answer, "target_language": target_language},
-                timeout=30
-            )
-            translated_text = trans_response.json().get("translated_text", answer)
-        except Exception as e:
-            print(f"[PIPELINE] Translation failed, using original: {e}")
+        if target_language in ("en", "auto", None, ""):
             translated_text = answer
+        else:
+            try:
+                trans_response = requests.post(
+                    f"{TRANSLATION_URL}/translate",
+                    json={"text": answer, "target_language": target_language},
+                    timeout=30
+                )
+                translated_text = trans_response.json().get("translated_text", answer)
+            except Exception as e:
+                print(f"[PIPELINE] Translation failed, using original: {e}")
+                translated_text = answer
         print(f"[PIPELINE] Translated: {translated_text}")
+
+        # Caption text
+        caption_text = answer if target_language in ("en", "auto", None, "") else translated_text
 
         # ── STEP 2: Emotion + SSML ────────────────────────────────────────────
         print("[PIPELINE] Step 2: Detecting emotion...")
@@ -311,16 +353,13 @@ async def ask_and_generate(
             timeout=30
         )
         if emotion_response.status_code != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Emotion engine failed: {emotion_response.text}"
-            )
+            raise HTTPException(status_code=500, detail=f"Emotion engine failed: {emotion_response.text}")
 
         detected_tone = emotion_response.json().get("detected_tone", "formal")
         ssml          = emotion_response.json().get("ssml", translated_text)
         print(f"[PIPELINE] Tone: {detected_tone}")
 
-        # ── STEP 3: Voice Audio ───────────────────────────────────────────────
+        # ── STEP 3: Voice ─────────────────────────────────────────────────────
         print("[PIPELINE] Step 3: Generating voice...")
         voice_response = requests.post(
             f"{VOICE_URL}/synthesize",
@@ -328,10 +367,7 @@ async def ask_and_generate(
             timeout=60
         )
         if voice_response.status_code != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Voice synthesis failed: {voice_response.text}"
-            )
+            raise HTTPException(status_code=500, detail=f"Voice synthesis failed: {voice_response.text}")
 
         with open(audio_path, "wb") as f:
             f.write(voice_response.content)
@@ -349,14 +385,22 @@ async def ask_and_generate(
                 timeout=300
             )
         if avatar_response.status_code != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Avatar generation failed: {avatar_response.text}"
-            )
+            raise HTTPException(status_code=500, detail=f"Avatar generation failed: {avatar_response.text}")
 
         video_filename = f"{session_id}_avatar.mp4"
-        with open(os.path.join("generated_videos", video_filename), "wb") as f:
+        video_path     = os.path.join("generated_videos", video_filename)
+        with open(video_path, "wb") as f:
             f.write(avatar_response.content)
+        print(f"[PIPELINE] Avatar video saved")
+
+        # ── STEP 5: Captions via :8006 ────────────────────────────────────────
+        print(f"[PIPELINE] Step 5: Adding captions via :8006...")
+        video_filename = add_captions_via_service(
+            video_path=video_path,
+            caption_text=caption_text,
+            target_language=target_language,
+            session_id=session_id
+        )
 
         video_url = f"http://localhost:8000/videos/{video_filename}"
         print(f"[PIPELINE] Done! {video_url}")
@@ -368,6 +412,7 @@ async def ask_and_generate(
             "llm_source":      llm_source,
             "detected_tone":   detected_tone,
             "translated_text": translated_text,
+            "caption_text":    caption_text,
             "session_id":      session_id,
         })
 
@@ -379,6 +424,5 @@ async def ask_and_generate(
         for f in [photo_path, audio_path]:
             if os.path.exists(f):
                 os.remove(f)
-
 
 # Run with: uvicorn pipeline:app --reload --port 8000
