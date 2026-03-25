@@ -13,16 +13,6 @@ SUPPORTED_LANGUAGES = {
     'ml': 'Malayalam',
     'pa': 'Punjabi',
     'ur': 'Urdu',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'ar': 'Arabic',
-    'pt': 'Portuguese',
-    'ru': 'Russian',
-    'it': 'Italian',
-    'zh': 'Chinese'
 }
 
 
