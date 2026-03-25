@@ -1,17 +1,25 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from './firebase'
 import Navbar from './components/Navbar'
 import Toast from './components/Toast'
-import CreatePage     from './pages/CreatePage'
-import FeaturesPage   from './pages/FeaturesPage'
-import HistoryPage    from './pages/HistoryPage'
-import LoginPage      from './pages/LoginPage'
+import CreatePage from './pages/CreatePage'
+import FeaturesPage from './pages/FeaturesPage'
+import HistoryPage from './pages/HistoryPage'
+import Auth from './pages/Auth'
 import BackgroundPage from './pages/BackgroundPage'
-import ChatPage       from './pages/ChatPage'
+import ChatPage from './pages/ChatPage'
 
 export default function App() {
   const [toasts, setToasts] = useState([])
   const [selectedBackground, setSelectedBackground] = useState(null)
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, setUser)
+    return unsubscribe
+  }, [])
 
   const addToast = useCallback((message, type = 'info') => {
     const id = Date.now() + Math.random()
@@ -25,26 +33,32 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Navbar />
+      <Navbar user={user} />
       <main style={{ flex: 1 }}>
         <Routes>
-          <Route path="/"           element={<Navigate to="/create" replace />} />
-          <Route path="/create"     element={<CreatePage   addToast={addToast} />} />
-          <Route path="/chat"       element={<ChatPage     addToast={addToast} />} />
-          <Route path="/features"   element={
-            <FeaturesPage
-              addToast={addToast}
-              selectedBackground={selectedBackground}
-            />}
+          <Route path="/" element={<Navigate to="/create" replace />} />
+          <Route path="/create" element={<CreatePage addToast={addToast} />} />
+          <Route path="/chat" element={<ChatPage addToast={addToast} />} />
+          <Route
+            path="/features"
+            element={
+              <FeaturesPage
+                addToast={addToast}
+                selectedBackground={selectedBackground}
+              />
+            }
           />
-          <Route path="/history"    element={<HistoryPage  addToast={addToast} />} />
-          <Route path="/login"      element={<LoginPage    addToast={addToast} />} />
-          <Route path="/background" element={
-            <BackgroundPage
-              addToast={addToast}
-              selectedBackground={selectedBackground}
-              onBackgroundApply={setSelectedBackground}
-            />}
+          <Route path="/history" element={<HistoryPage addToast={addToast} />} />
+          <Route path="/login" element={<Auth />} />
+          <Route
+            path="/background"
+            element={
+              <BackgroundPage
+                addToast={addToast}
+                selectedBackground={selectedBackground}
+                onBackgroundApply={setSelectedBackground}
+              />
+            }
           />
           <Route path="*" element={<Navigate to="/create" replace />} />
         </Routes>
