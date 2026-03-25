@@ -5,7 +5,9 @@
     "soham":    "024d401e-2cf5-4718-896b-66b2c51c62a7",
     "kshitij":  "66ff12ac-f6b1-478e-a596-00eca24bd7e9",
     "tanishka": "0a233d2b-b890-4e0d-b896-4f40b37f4cbf",
-    "bhargavi": "81d99ce4-fce0-4bb1-aa6c-88c39934e9e0"
+    "bhargavi": "81d99ce4-fce0-4bb1-aa6c-88c39934e9e0",
+    "zayan": "79f8b5fb-2cc8-479a-80df-29f7a7cf1a3e",
+    "yalina": "2f251ac3-89a9-4a77-a452-704b474ccd01"
   },
   "api_keys": {
     "osin":     "CARTESIA_API_KEY_A",
@@ -13,6 +15,8 @@
     "kshitij":  "CARTESIA_API_KEY_A",
     "shreeja":  "CARTESIA_API_KEY_B",
     "tanishka": "CARTESIA_API_KEY_B",
-    "bhargavi": "CARTESIA_API_KEY_B"
+    "bhargavi": "CARTESIA_API_KEY_B",
+    "zayan": "CARTESIA_API_KEY_A",
+    "yalina": "CARTESIA_API_KEY_A"
   }
 }
