@@ -3,7 +3,8 @@ pipeline/pipeline.py — Shreeja's master orchestration server
 Runs on port 8000. Osin's frontend calls POST /generate-video.
 
 Full flow:
-  Text → Translation (Bhargavi :8002)
+  Text → Deepfake/Content Flagging (Gemini AI)
+       → Translation (Bhargavi :8002)
        → Emotion/SSML (Soham :8001)
        → Voice (Kshitij :8003)
        → Avatar Video (Tanishka :8004)
@@ -11,7 +12,8 @@ Full flow:
        → Video URL returned to frontend
 
 Q&A flow:
-  Question → ai_brain :8005 (Gemini/Ollama)
+  Question → Deepfake/Content Flagging (Gemini AI)
+           → ai_brain :8005 (Gemini/Ollama)
            → answer text
            → Translation → Emotion → Voice → Avatar → Captions
            → Video URL + answer returned to frontend
@@ -23,11 +25,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import requests
 import os
+import json
 import uuid
 import sys
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv("/workspaces/VaktarAI/.env")
 
 # Add parent directory to path so document_processor can be imported
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -53,7 +56,123 @@ AVATAR_URL      = os.getenv("AVATAR_URL",      "http://localhost:8004")
 AI_BRAIN_URL    = os.getenv("AI_BRAIN_URL",    "http://localhost:8005")
 CAPTION_URL     = os.getenv("CAPTION_URL",     "http://localhost:8006")
 
+# API Keys
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
+
 UPLOAD_DIR = "uploads"
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
+
+MODERATION_PROMPT = """You are a strict content moderation system for an AI avatar video platform.
+Analyze the user text and determine if it should be BLOCKED.
+BLOCK if the text contains: violence, threats, hate speech, adult/sexual content, deepfake misuse, misinformation, self-harm, illegal activities.
+ALLOW normal conversation, education, business, neutral creative writing.
+Respond ONLY with valid JSON, no explanation, no markdown:
+{"flagged": false, "category": null, "message": null}
+If flagged=true, set category to one of: violence, hate_speech, adult, deepfake_misuse, misinformation, self_harm, illegal
+Set message to a short user-friendly warning like: ⚠ Your text contains violent content and cannot be processed."""
+
+
+def _flag_with_gemini(text: str) -> dict:
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY not set")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": MODERATION_PROMPT + f"\n\nUser text:\n{text}"}]}],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 100}
+    }
+    response = requests.post(url, json=payload, timeout=10)
+    response.raise_for_status()
+    content = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    if content.startswith("```"):
+        content = content.split("```")[1]
+        if content.startswith("json"):
+            content = content[4:]
+    return json.loads(content.strip())
+
+
+def _flag_with_groq(text: str) -> dict:
+    if not GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY not set")
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        "temperature": 0,
+        "max_tokens": 100,
+        "messages": [
+            {"role": "system", "content": MODERATION_PROMPT},
+            {"role": "user",   "content": f"User text:\n{text}"}
+        ]
+    }
+    response = requests.post(url, json=payload, headers=headers, timeout=10)
+    response.raise_for_status()
+    content = response.json()["choices"][0]["message"]["content"].strip()
+    if content.startswith("```"):
+        content = content.split("```")[1]
+        if content.startswith("json"):
+            content = content[4:]
+    return json.loads(content.strip())
+
+
+def flag_content(text: str) -> dict:
+    if not text.strip():
+        return {"flagged": True, "category": "empty", "message": "⚠ Please enter some text before generating.", "keyword": None}
+    try:
+        print("[FLAGGING] Checking with Gemini...")
+        result = _flag_with_gemini(text)
+        result["keyword"] = None
+        if result.get("flagged"):
+            print(f"[FLAGGING] ⚠ Blocked — category: {result.get('category')}")
+        else:
+            print("[FLAGGING] ✅ Content is safe")
+        return result
+    except Exception as e:
+        print(f"[FLAGGING] Gemini failed ({e}), trying Groq...")
+    try:
+        result = _flag_with_groq(text)
+        result["keyword"] = None
+        if result.get("flagged"):
+            print(f"[FLAGGING] ⚠ Blocked — category: {result.get('category')}")
+        else:
+            print("[FLAGGING] ✅ Content is safe")
+        return result
+    except Exception as e:
+        print(f"[FLAGGING] Groq also failed ({e}), failing open")
+    return {"flagged": False, "category": None, "message": None, "keyword": None}
+
+
+
+# ── AI-Powered Content Flagging ───────────────────────────────────────────────
+# Uses Gemini as primary, falls back to Groq if Gemini fails.
+# No hardcoded keywords — the LLM understands intent, slang, rephrasing.
+
+MODERATION_PROMPT = """You are a strict content moderation system for an AI avatar video platform.
+
+Analyze the user's text and determine if it should be BLOCKED.
+
+BLOCK if the text contains or implies:
+- Violence, threats, harm to people or animals
+- Hate speech, racism, discrimination of any group
+- Adult or sexual content
+- Attempts to create deepfakes to deceive or impersonate someone
+- Misinformation, propaganda, or deliberate deception
+- Self-harm or suicide
+- Illegal activities
+
+ALLOW if the text is:
+- Normal conversation, education, business, storytelling
+- Mentions of sensitive topics in a clearly informational or neutral context
+- Creative writing that is not harmful
+
+Respond ONLY with a valid JSON object — no explanation, no markdown, no extra text:
+{"flagged": false, "category": null, "message": null}
+
+If flagged=true, set category to one of: violence, hate_speech, adult, deepfake_misuse, misinformation, self_harm, illegal
+And set message to a short, user-friendly warning like: "⚠ Your text contains violent content and cannot be processed."
+"""
 
 
 # ── Caption helper ─────────────────────────────────────────────────────────────
@@ -61,13 +180,11 @@ UPLOAD_DIR = "uploads"
 def add_captions_via_service(video_path: str, caption_text: str, target_language: str, session_id: str) -> str:
     """
     Calls captions service on :8006 to burn captions onto video.
-    Returns the captioned video filename, or original filename if captioning fails.
-    Pipeline never breaks even if captions service is down.
+    Returns captioned video filename, or original if captioning fails.
     """
     captioned_filename = f"{session_id}_avatar_captioned.mp4"
     captioned_path     = os.path.join("generated_videos", captioned_filename)
 
-    # Save caption text as sidecar file (captions service can also read this)
     text_path = os.path.join("generated_videos", f"{session_id}_avatar_text.txt")
     try:
         with open(text_path, "w", encoding="utf-8") as f:
@@ -128,7 +245,22 @@ async def generate_video(
         print(f"\n[PIPELINE] Session: {session_id}")
         print(f"[PIPELINE] Original text: {original_text} | Lang: {target_language}")
 
-        # ── STEP 1: Translate ──
+        # ── CONTENT FLAGGING ───────────────────────────────────────────────
+        print("[PIPELINE] Flagging: Checking content...")
+        flag = flag_content(original_text)
+        if flag["flagged"]:
+            print(f"[PIPELINE] ⚠ Content blocked: {flag['category']}")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "flagged":  True,
+                    "category": flag["category"],
+                    "message":  flag["message"],
+                }
+            )
+        print("[PIPELINE] Flagging: ✅ Content is safe")
+
+        # ── STEP 1: Translate ──────────────────────────────────────────────
         if target_language in ("en", "auto", None, ""):
             print("[PIPELINE] Step 1: English — skipping translation")
             translated_text = original_text
@@ -146,11 +278,9 @@ async def generate_video(
                 translated_text = original_text
         print(f"[PIPELINE] Translated: {translated_text}")
 
-        # Caption text — English uses original, others use translated
         caption_text = original_text if target_language in ("en", "auto", None, "") else translated_text
-        print(f"[PIPELINE] Caption text set ({target_language})")
 
-        # ── STEP 2: Emotion + SSML ──
+        # ── STEP 2: Emotion + SSML ─────────────────────────────────────────
         print("[PIPELINE] Step 2: Detecting emotion...")
         emotion_response = requests.post(
             f"{EMOTION_URL}/enhance-text",
@@ -167,9 +297,8 @@ async def generate_video(
         ssml          = emotion_response.json().get("ssml", translated_text)
         print(f"[PIPELINE] Tone: {detected_tone}")
 
-        # ── STEP 3: Voice Audio ──
+        # ── STEP 3: Voice Audio ────────────────────────────────────────────
         print("[PIPELINE] Step 3: Generating voice audio...")
-        print(f"[PIPELINE] Speaker: {speaker}")
         voice_response = requests.post(
             f"{VOICE_URL}/synthesize",
             json={"ssml": ssml, "speaker": speaker},
@@ -182,7 +311,7 @@ async def generate_video(
             f.write(voice_response.content)
         print(f"[PIPELINE] Audio saved")
 
-        # ── STEP 4: Avatar Video ──
+        # ── STEP 4: Avatar Video ───────────────────────────────────────────
         print("[PIPELINE] Step 4: Generating avatar video (2-3 min)...")
         with open(photo_path, "rb") as p, open(audio_path, "rb") as a:
             avatar_response = requests.post(
@@ -202,7 +331,7 @@ async def generate_video(
             f.write(avatar_response.content)
         print(f"[PIPELINE] Avatar video saved")
 
-        # ── STEP 5: Captions via :8006 ──
+        # ── STEP 5: Captions ───────────────────────────────────────────────
         print(f"[PIPELINE] Step 5: Adding captions via :8006...")
         video_filename = add_captions_via_service(
             video_path=video_path,
@@ -242,9 +371,6 @@ async def document_to_text(
     file:       UploadFile = File(default=None),
     email_text: str        = Form(default=None),
 ):
-    """
-    Extract text from PDF/DOCX/TXT or email and summarize into key points.
-    """
     from document_processor import process_document
 
     session_id = uuid.uuid4().hex
@@ -295,10 +421,6 @@ async def ask_and_generate(
     speaker:         str        = Form(default="shreeja"),
     photo:           UploadFile = File(...)
 ):
-    """
-    Q&A endpoint. Frontend sends a question + photo.
-    ai_brain answers it, then the full pipeline makes the avatar video.
-    """
     session_id = uuid.uuid4().hex
     photo_path = os.path.join(UPLOAD_DIR, f"{session_id}_photo.png")
     audio_path = os.path.join(UPLOAD_DIR, f"{session_id}_audio.wav")
@@ -310,7 +432,22 @@ async def ask_and_generate(
         print(f"\n[PIPELINE] /ask-and-generate session: {session_id}")
         print(f"[PIPELINE] Question: {question}")
 
-        # ── STEP 0: ai_brain ──────────────────────────────────────────────────
+        # ── CONTENT FLAGGING ───────────────────────────────────────────────
+        print("[PIPELINE] Flagging: Checking question...")
+        flag = flag_content(question)
+        if flag["flagged"]:
+            print(f"[PIPELINE] ⚠ Question blocked: {flag['category']}")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "flagged":  True,
+                    "category": flag["category"],
+                    "message":  flag["message"],
+                }
+            )
+        print("[PIPELINE] Flagging: ✅ Question is safe")
+
+        # ── STEP 0: ai_brain ──────────────────────────────────────────────
         print("[PIPELINE] Step 0: Getting answer from ai_brain :8005...")
         brain_response = requests.post(
             f"{AI_BRAIN_URL}/ask",
@@ -325,8 +462,7 @@ async def ask_and_generate(
         llm_source = brain_data.get("source", "unknown")
         print(f"[PIPELINE] Answer from {llm_source}: {answer[:80]}...")
 
-        # ── STEP 1: Translate ─────────────────────────────────────────────────
-        print("[PIPELINE] Step 1: Translating...")
+        # ── STEP 1: Translate ──────────────────────────────────────────────
         if target_language in ("en", "auto", None, ""):
             translated_text = answer
         else:
@@ -342,10 +478,9 @@ async def ask_and_generate(
                 translated_text = answer
         print(f"[PIPELINE] Translated: {translated_text}")
 
-        # Caption text
         caption_text = answer if target_language in ("en", "auto", None, "") else translated_text
 
-        # ── STEP 2: Emotion + SSML ────────────────────────────────────────────
+        # ── STEP 2: Emotion + SSML ─────────────────────────────────────────
         print("[PIPELINE] Step 2: Detecting emotion...")
         emotion_response = requests.post(
             f"{EMOTION_URL}/enhance-text",
@@ -359,7 +494,7 @@ async def ask_and_generate(
         ssml          = emotion_response.json().get("ssml", translated_text)
         print(f"[PIPELINE] Tone: {detected_tone}")
 
-        # ── STEP 3: Voice ─────────────────────────────────────────────────────
+        # ── STEP 3: Voice ──────────────────────────────────────────────────
         print("[PIPELINE] Step 3: Generating voice...")
         voice_response = requests.post(
             f"{VOICE_URL}/synthesize",
@@ -371,9 +506,8 @@ async def ask_and_generate(
 
         with open(audio_path, "wb") as f:
             f.write(voice_response.content)
-        print(f"[PIPELINE] Audio saved")
 
-        # ── STEP 4: Avatar Video ──────────────────────────────────────────────
+        # ── STEP 4: Avatar Video ───────────────────────────────────────────
         print("[PIPELINE] Step 4: Generating avatar video (2-3 min)...")
         with open(photo_path, "rb") as p, open(audio_path, "rb") as a:
             avatar_response = requests.post(
@@ -391,9 +525,8 @@ async def ask_and_generate(
         video_path     = os.path.join("generated_videos", video_filename)
         with open(video_path, "wb") as f:
             f.write(avatar_response.content)
-        print(f"[PIPELINE] Avatar video saved")
 
-        # ── STEP 5: Captions via :8006 ────────────────────────────────────────
+        # ── STEP 5: Captions ───────────────────────────────────────────────
         print(f"[PIPELINE] Step 5: Adding captions via :8006...")
         video_filename = add_captions_via_service(
             video_path=video_path,
@@ -424,5 +557,6 @@ async def ask_and_generate(
         for f in [photo_path, audio_path]:
             if os.path.exists(f):
                 os.remove(f)
+
 
 # Run with: uvicorn pipeline:app --reload --port 8000
