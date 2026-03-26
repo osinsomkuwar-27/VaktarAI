@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@source "../../packages/ui/src/**/*.{ts,tsx}";
+@theme {
+  --font-sans: 'Raleway', sans-serif;
+}
+html {
+  scroll-behavior: smooth;
+}
