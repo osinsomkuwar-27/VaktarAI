@@ -4,6 +4,7 @@ import {
   ReactNode,
   DragEvent,
   ChangeEvent,
+  useEffect,
 } from "react";
 
 // ─── Design tokens ─────────────────────────────────────────────────
@@ -171,6 +172,10 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   const [portraitFile, setPortraitFile]   = useState<File | null>(null);
   const [bgRemoved, setBgRemoved]         = useState(false);
   const portraitInputRef = useRef<HTMLInputElement>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [inputMode, setInputMode]     = useState<"type" | "document">("type");
   const [message, setMessage]         = useState("");
@@ -199,6 +204,35 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   const [progress, setProgress]     = useState(0);
   const [videoUrl, setVideoUrl]     = useState<string | null>(null);
   const [genError, setGenError]     = useState<string | null>(null);
+
+  const stopCamera = () => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    if (cameraVideoRef.current) {
+      cameraVideoRef.current.srcObject = null;
+    }
+    setCameraOpen(false);
+  };
+
+  const startCamera = async () => {
+    try {
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+
+      cameraStreamRef.current = stream;
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+        await cameraVideoRef.current.play();
+      }
+      setCameraOpen(true);
+    } catch {
+      setCameraError("Camera access was blocked or unavailable. Please allow camera permission and try again.");
+      setCameraOpen(false);
+    }
+  };
 
   const handlePortrait = (file: File | null) => {
     if (file) {
@@ -239,6 +273,29 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   const handleRemovePortrait = () => {
     setPortrait(null);
     setBgRemoved(false);
+  };
+  const handleCapturePhoto = async () => {
+    const video = cameraVideoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.95);
+    });
+
+    if (!blob) return;
+
+    const file = new File([blob], `camera-portrait-${Date.now()}.jpg`, { type: "image/jpeg" });
+    handlePortrait(file);
+    setPortraitTab("upload");
+    stopCamera();
   };
   const handleGenerate = async () => {
     if (!portraitFile) {
@@ -281,6 +338,26 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   };
 
   const wordCount = message.trim() ? message.trim().split(/\s+/).length : 0;
+
+  useEffect(() => {
+    if (portraitTab === "camera" && !portrait) {
+      void startCamera();
+    }
+
+    if (portraitTab !== "camera") {
+      stopCamera();
+    }
+
+    return () => {
+      if (portraitTab === "camera") {
+        stopCamera();
+      }
+    };
+  }, [portraitTab, portrait]);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
 
   return (
     <div style={{
@@ -373,6 +450,12 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
                     Upload
                   </button>
                   <button
+                    onClick={() => {
+                      setPortrait(null);
+                      setPortraitFile(null);
+                      setBgRemoved(false);
+                      setPortraitTab("camera");
+                    }}
                     style={{
                       padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
                       fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
@@ -410,6 +493,94 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
                 </div>
                 <input ref={portraitInputRef} type="file" accept="image/*" style={{ display: "none" }}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => handlePortrait(e.target.files?.[0] ?? null)} />
+              </div>
+            ) : portraitTab === "camera" ? (
+              <div style={{
+                border: `1px solid ${C.border}`,
+                borderRadius: "12px",
+                padding: "18px",
+                background: C.bg,
+              }}>
+                <div style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  borderRadius: "12px",
+                  background: C.navy,
+                  minHeight: "260px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "14px",
+                }}>
+                  {cameraOpen ? (
+                    <video
+                      ref={cameraVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{ width: "100%", height: "260px", objectFit: "cover", display: "block", transform: "scaleX(-1)" }}
+                    />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "24px" }}>
+                      <p style={{ margin: "0 0 8px", color: C.white, fontSize: "14px", fontWeight: 700 }}>Open your camera</p>
+                      <p style={{ margin: 0, color: "rgba(243,244,244,0.78)", fontSize: "12px", lineHeight: 1.6 }}>
+                        Position your face in the frame and capture a portrait for your avatar.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {cameraError && (
+                  <p style={{
+                    margin: "0 0 12px",
+                    fontSize: "12px",
+                    color: "#B42318",
+                    background: "#FBEAE8",
+                    border: "1px solid #F3D1CC",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                  }}>
+                    {cameraError}
+                  </p>
+                )}
+
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => void startCamera()}
+                    style={{
+                      padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
+                      fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
+                      background: C.navy, color: C.white, border: "none",
+                    }}
+                  >
+                    Open Camera
+                  </button>
+                  <button
+                    onClick={() => void handleCapturePhoto()}
+                    disabled={!cameraOpen}
+                    style={{
+                      padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
+                      fontFamily: "inherit", fontWeight: 600, cursor: cameraOpen ? "pointer" : "not-allowed",
+                      background: C.teal, color: C.white, border: "none",
+                      opacity: cameraOpen ? 1 : 0.5,
+                    }}
+                  >
+                    Capture Photo
+                  </button>
+                  <button
+                    onClick={() => {
+                      stopCamera();
+                      setPortraitTab("upload");
+                    }}
+                    style={{
+                      padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
+                      fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
+                      background: C.white, color: C.navy, border: `1px solid ${C.border}`,
+                    }}
+                  >
+                    Use Upload Instead
+                  </button>
+                </div>
               </div>
             ) : (
               <div
