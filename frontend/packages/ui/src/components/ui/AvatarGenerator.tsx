@@ -18,7 +18,7 @@ const C = {
 } as const;
 
 const LANGUAGES = ["Hindi", "English", "Spanish", "French", "German", "Japanese", "Mandarin", "Arabic", "Portuguese"] as const;
-const SPEAKERS  = ["Aira", "Kael", "Zayn", "Nyra", "Elara", "Shreeja"] as const;
+const SPEAKERS  = ["bhargavi", "tanishka", "soham", "osin", "kshitij", "shreeja"] as const;
 
 const BG_PRESETS = ["#0D1B2A", "#1D546D", "#061E29", "#F3F4F4", "#10b981", "#6366f1", "#f59e0b", "#ef4444"];
 
@@ -74,10 +74,23 @@ const selectStyle: React.CSSProperties = {
 };
 
 // ─── Main ──────────────────────────────────────────────────────────
-export default function AvatarGenerator() {
+type GenerateAvatarFn = (
+  imageFile: File,
+  text: string,
+  onUploadProgress?: (pct: number) => void,
+  targetLanguage?: string,
+  speaker?: string
+) => Promise<{ video_url: string; [key: string]: unknown }>;
+
+interface AvatarGeneratorProps {
+  generateAvatar: GenerateAvatarFn;
+}
+
+export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps) {
   const [portraitTab, setPortraitTab]     = useState<"upload" | "camera">("upload");
   const [portraitHover, setPortraitHover] = useState(false);
   const [portrait, setPortrait]           = useState<string | null>(null);
+  const [portraitFile, setPortraitFile]   = useState<File | null>(null);
   const [bgRemoved, setBgRemoved]         = useState(false);
   const portraitInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,7 +103,7 @@ export default function AvatarGenerator() {
   const [summarizing, setSummarizing] = useState(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
-  const [speaker, setSpeaker]   = useState<typeof SPEAKERS[number]>("Aira");
+  const [speaker, setSpeaker]   = useState<typeof SPEAKERS[number]>("shreeja");
   const [language, setLanguage] = useState<typeof LANGUAGES[number]>("English");
 
   // Background state
@@ -104,9 +117,15 @@ export default function AvatarGenerator() {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated]   = useState(false);
   const [progress, setProgress]     = useState(0);
+  const [videoUrl, setVideoUrl]     = useState<string | null>(null);
+  const [genError, setGenError]     = useState<string | null>(null);
 
   const handlePortrait = (file: File | null) => {
-    if (file) { setPortrait(URL.createObjectURL(file)); setBgRemoved(false); }
+    if (file) {
+      setPortrait(URL.createObjectURL(file));
+      setPortraitFile(file);
+      setBgRemoved(false);
+    }
   };
   const handleDoc = (file: File | null) => {
     if (file) { setDocFile(file.name); setSummarized(false); }
@@ -130,23 +149,44 @@ export default function AvatarGenerator() {
     setPortrait(null);
     setBgRemoved(false);
   };
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (!portraitFile) {
+      setGenError('Please upload a portrait photo first.');
+      return;
+    }
+    if (!message.trim()) {
+      setGenError('Please enter a message or summarize a document first.');
+      return;
+    }
+
     setGenerating(true);
     setGenerated(false);
+    setGenError(null);
+    setVideoUrl(null);
     setProgress(0);
-    const total = 3000;
-    const step = 60;
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += step;
-      setProgress(Math.min(elapsed / total, 1));
-      if (elapsed >= total) {
-        clearInterval(timer);
-        setGenerating(false);
-        setGenerated(true);
-        setProgress(1);
-      }
-    }, step);
+
+    const langCode: Record<string, string> = {
+      English: 'en', Hindi: 'hi', Spanish: 'es',
+      French: 'fr', German: 'de', Japanese: 'ja',
+      Mandarin: 'zh', Arabic: 'ar', Portuguese: 'pt',
+    };
+
+    try {
+      const result = await generateAvatar(
+        portraitFile,
+        message,
+        (pct) => setProgress(pct),
+        langCode[language] ?? 'en',
+        speaker.toLowerCase()
+      );
+      setVideoUrl(result.video_url);
+      setGenerated(true);
+      setProgress(1);
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const wordCount = message.trim() ? message.trim().split(/\s+/).length : 0;
@@ -730,27 +770,33 @@ export default function AvatarGenerator() {
                       </svg>
                     </div>
                     <p style={{ margin: 0, fontSize: "14px", color: "rgba(255,255,255,0.3)", fontWeight: 500, letterSpacing: "0.01em" }}>
-                      {generating ? "Generating your avatar…" : "Your avatar will appear here"}
+                      {generating ? "Generating your avatar…" : genError ? "Generation failed" : "Your avatar will appear here"}
                     </p>
                     {generating && (
                       <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "rgba(255,255,255,0.18)" }}>
                         {Math.round(progress * 100)}% complete
                       </p>
                     )}
+                    {genError && (
+                      <p style={{ margin: "8px 0 0", fontSize: "11.5px", color: "#f87171", maxWidth: "260px" }}>
+                        ⚠ {genError}
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* Ready — play state */}
-                {generated && (
-                  <div style={{
-                    width: "68px", height: "68px", borderRadius: "50%",
-                    background: "rgba(255,255,255,0.12)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer",
-                  }}>
-                    <span style={{ fontSize: "22px", color: "rgba(255,255,255,0.85)", marginLeft: "3px" }}>▶</span>
-                  </div>
+                {/* Ready — real video player */}
+                {generated && videoUrl && (
+                  <video
+                    key={videoUrl}
+                    src={videoUrl}
+                    controls
+                    autoPlay
+                    style={{
+                      width: "100%", height: "100%",
+                      objectFit: "contain", borderRadius: "16px",
+                    }}
+                  />
                 )}
 
                 {/* Progress bar while generating */}
@@ -764,45 +810,32 @@ export default function AvatarGenerator() {
                     }} />
                   </div>
                 )}
-
-                {/* Playback bar after done */}
-                {generated && (
-                  <div style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0,
-                    padding: "10px 18px",
-                    background: "linear-gradient(to top, rgba(0,0,0,0.7), transparent)",
-                    display: "flex", alignItems: "center", gap: "10px",
-                  }}>
-                    <div style={{ flex: 1, height: "2px", borderRadius: "2px", background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>
-                      <div style={{ width: "0%", height: "100%", background: C.teal, borderRadius: "2px" }} />
-                    </div>
-                    <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-                      00:00 / 00:32
-                    </span>
-                    {["CC", "HD"].map(tag => (
-                      <span key={tag} style={{
-                        fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px",
-                        background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)",
-                      }}>{tag}</span>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Action buttons */}
             <div style={{ display: "flex", gap: "8px", marginTop: "22px" }}>
-              {["Play", "Download", "Share"].map(label => (
-                <button key={label} style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "8px", padding: "9px 24px",
-                  color: "rgba(255,255,255,0.5)", fontSize: "12px",
-                  fontFamily: "inherit", fontWeight: 500, cursor: "pointer",
-                  transition: "all 0.15s",
-                }}>
+              {([
+                { label: "Download", href: videoUrl ?? undefined },
+                { label: "Share",    href: undefined },
+              ] as { label: string; href?: string }[]).map(({ label, href }) => (
+                <a
+                  key={label}
+                  href={href}
+                  download={label === "Download" ? "avatar-video.mp4" : undefined}
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "8px", padding: "9px 24px",
+                    color: videoUrl ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)",
+                    fontSize: "12px", fontFamily: "inherit", fontWeight: 500,
+                    cursor: videoUrl ? "pointer" : "not-allowed",
+                    textDecoration: "none", transition: "all 0.15s",
+                    pointerEvents: videoUrl ? "auto" : "none",
+                  }}
+                >
                   {label}
-                </button>
+                </a>
               ))}
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { askAvatar } from "./api"
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { NavBar } from "@workspace/ui/components/ui/tubelight-navbar"
 import { LandingAccordionItem } from "@workspace/ui/components/ui/interactive-image-accordion"
@@ -59,7 +60,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/avatar" element={<AvatarPage />} />
-        <Route path="/chat" element={<ChatSection />} />
+        <Route path="/chat" element={<ChatSection askAvatar={askAvatar} />} />
         <Route path="/gallery" element={<Gallery/>}/>
       </Routes>
     </Router>

@@ -8,17 +8,19 @@ interface Message {
   text: string;
   time: string;
   isError: boolean;
+  videoUrl?: string;
 }
 
 const VOICES: string[] = ['Shreeja', 'Osin', 'Soham', 'Kshitij', 'Tanishka', 'Bhargavi'];
 const LANGUAGES: string[] = ['English', 'Hindi', 'Spanish', 'French', 'German'];
-const REPLIES: string[] = [
-  `The square of 9 is 81. Is there anything else you'd like to know?`,
-  `Great question! I'm processing your request — please upload an avatar photo to enable full video responses.`,
-  `I understand! Here's what I know about that topic. Would you like me to elaborate further?`,
-  `That's an interesting query. Let me think through this for you carefully.`,
-  `Thanks for asking! My response capabilities are enhanced once you upload your avatar photo.`,
-];
+
+const LANGUAGE_CODES: Record<string, string> = {
+  English: 'en',
+  Hindi: 'hi',
+  Spanish: 'es',
+  French: 'fr',
+  German: 'de',
+};
 
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap');
@@ -369,9 +371,22 @@ function getTime(): string {
   });
 }
 
-export default function VaktarChat() {
+type AskAvatarFn = (
+  photoFile: File,
+  question: string,
+  targetLanguage?: string,
+  speaker?: string
+) => Promise<{ answer: string; video_url?: string; llm_source?: string; session_id?: string }>;
+
+interface VaktarChatProps {
+  askAvatar: AskAvatarFn;
+}
+
+export default function VaktarChat({ askAvatar }: VaktarChatProps) {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>('Shreeja');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('English');
   const [inputValue, setInputValue] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -411,6 +426,7 @@ export default function VaktarChat() {
   const handleUpload = (e: ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPhotoFile(file);
     const reader = new FileReader();
     reader.onload = (ev: ProgressEvent<FileReader>) => {
       if (ev.target?.result) setUserAvatar(ev.target.result as string);
@@ -431,14 +447,59 @@ export default function VaktarChat() {
   const sendMessage = async (): Promise<void> => {
     const text = inputValue.trim();
     if (!text) return;
+
+    if (!photoFile) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: 'avatar',
+          text: '⚠ Please upload a photo first — the avatar needs it to generate a video response.',
+          time: getTime(),
+          isError: true,
+        },
+      ]);
+      return;
+    }
+
     setMessages((prev) => [...prev, { id: Date.now(), role: 'user', text, time: getTime(), isError: false }]);
     setInputValue('');
     if (inputRef.current) inputRef.current.style.height = 'auto';
     setIsTyping(true);
-    await new Promise<void>((r) => setTimeout(r, 1200 + Math.random() * 600));
-    setIsTyping(false);
-    const replyText = REPLIES[Math.floor(Math.random() * REPLIES.length)];
-    setMessages((prev) => [...prev, { id: Date.now() + 1, role: 'avatar', text: replyText, time: getTime(), isError: false }]);
+
+    try {
+      const langCode = LANGUAGE_CODES[selectedLanguage] ?? 'en';
+      const speaker = selectedVoice.toLowerCase();
+
+      const result = await askAvatar(photoFile, text, langCode, speaker);
+      // result: { answer, video_url, llm_source, session_id }
+
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          role: 'avatar',
+          text: result.answer ?? 'Here is your avatar response.',
+          time: getTime(),
+          isError: false,
+          videoUrl: result.video_url ?? undefined,
+        },
+      ]);
+    } catch (err) {
+      setIsTyping(false);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          role: 'avatar',
+          text: `⚠ ${message}`,
+          time: getTime(),
+          isError: true,
+        },
+      ]);
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -473,7 +534,7 @@ export default function VaktarChat() {
           <div className="sidebar-section">
             <div className="section-label">Language</div>
             <div className="select-wrap">
-              <select defaultValue="English">
+              <select value={selectedLanguage} onChange={(e) => setSelectedLanguage(e.target.value)}>
                 {LANGUAGES.map((lang) => <option key={lang}>{lang}</option>)}
               </select>
             </div>
@@ -518,7 +579,16 @@ export default function VaktarChat() {
                   {msg.role === 'user' && userAvatar ? '' : msg.role === 'user' ? 'U' : 'V'}
                 </div>
                 <div>
-                  <div className={`bubble${msg.isError ? ' error' : ''}`}>{msg.text}</div>
+                  <div className={`bubble${msg.isError ? ' error' : ''}`}>
+                    {msg.text}
+                    {msg.videoUrl && (
+                      <video
+                        src={msg.videoUrl}
+                        controls
+                        style={{ display: 'block', marginTop: '10px', borderRadius: '10px', maxWidth: '100%', width: '320px' }}
+                      />
+                    )}
+                  </div>
                   <div className="msg-meta">{msg.time}</div>
                 </div>
               </div>
