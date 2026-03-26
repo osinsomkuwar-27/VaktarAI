@@ -1,5 +1,6 @@
 import { useState } from "react"
-
+import { Link } from "react-router-dom"
+import { useAuth } from "../../context/AuthContext"
 interface AccordionItemData {
   id: number
   title: string
@@ -54,6 +55,7 @@ const AccordionItem = ({ item, isActive, onMouseEnter }: AccordionItemProps) => 
 
 export function LandingAccordionItem() {
   const [activeIndex, setActiveIndex] = useState<number>(4)
+  const { user } = useAuth()
 
   return (
     <div className="font-sans h-full">
@@ -83,13 +85,14 @@ export function LandingAccordionItem() {
               Create lifelike AI avatars that bring your identity to life. Powered by cutting-edge generative models.
             </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row md:justify-start justify-center">
-              <a
-                href="#contact"
+              <Link
+                to={user ? "/avatar" : "/login"}
+                state={user ? undefined : { redirectTo: "/avatar" }}
                 className="inline-block rounded-full px-8 py-3 font-semibold shadow-lg transition-all duration-300 hover:scale-105"
                 style={{ background: "#F3F4F4", color: "#061E29" }}
               >
                 Try Now →
-              </a>
+              </Link>
               <a
                 href="#about"
                 className="inline-block rounded-full px-8 py-3 font-semibold transition-all duration-300"
@@ -113,7 +116,6 @@ export function LandingAccordionItem() {
               ))}
             </div>
           </div>
-
         </div>
       </section>
     </div>

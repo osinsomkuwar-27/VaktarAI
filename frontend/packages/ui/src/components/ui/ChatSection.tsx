@@ -46,16 +46,6 @@ const CSS = `
     --sidebar-w: 300px;
   }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html, body {
-    height: 100%;
-    overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Taviraj', serif;
-  }
-
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
@@ -63,8 +53,8 @@ const CSS = `
   /* ─── LAYOUT ─── */
   .layout {
     display: flex;
-    height: 100vh;
-    padding-top: var(--nav-h);
+    height: calc(100vh - var(--nav-h));
+    overflow: hidden;
   }
 
   /* ─── SIDEBAR ─── */
@@ -362,7 +352,6 @@ const CSS = `
     .msg-row { max-width: 90%; }
   }
 `;
-
 function getTime(): string {
   return new Date().toLocaleTimeString('en-US', {
     hour: '2-digit',

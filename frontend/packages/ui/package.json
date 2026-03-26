@@ -15,6 +15,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "firebase": "^12.11.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.577.0",
     "next": "^16.2.1",
@@ -49,6 +50,7 @@
     "./globals.css": "./src/styles/globals.css",
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx",
-    "./hooks/*": "./src/hooks/*.tsx"
+    "./hooks/*": "./src/hooks/*.tsx",
+    "./context/*": "./src/context/*.tsx"
   }
 }
