@@ -56,30 +56,23 @@ export default function TeamSection() {
         }
 
         .team-grid {
-          width: min(1120px, 100%);
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 28px;
-        }
+  width: min(720px, 100%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 48px 0px;
+}
 
         .member {
-          background: #FFFFFF;
-          border: 1px solid rgba(95, 149, 152, 0.22);
-          border-radius: 28px;
-          padding: 28px 22px 24px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 18px;
+          gap: 12px;
           text-align: center;
-          box-shadow: 0 18px 38px rgba(29, 84, 109, 0.08);
-          transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+          transition: transform 0.28s ease;
         }
 
         .member:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 24px 44px rgba(29, 84, 109, 0.14);
-          border-color: rgba(29, 84, 109, 0.28);
+          transform: translateY(-6px);
         }
 
         .avatar-shell {
@@ -112,6 +105,7 @@ export default function TeamSection() {
           flex-direction: column;
           gap: 6px;
           align-items: center;
+          max-width: 220px;
         }
 
         .name {

@@ -1,116 +1,52 @@
-import { Bot, Globe, Film } from "lucide-react";
-import { Badge } from "@workspace/ui/components/ui/badge";
+const features = [
+  {
+    title: "Avatar Creation",
+    body: "Upload a portrait, choose a background, and turn it into a speaking avatar.",
+  },
+  {
+    title: "Voice & Language",
+    body: "Pick a voice and language to shape how your avatar sounds.",
+  },
+  {
+    title: "Document to Video",
+    body: "Use summarized document content to generate avatar-led explainers faster.",
+  },
+  {
+    title: "Avatar Chat",
+    body: "Chat with your avatar experience in a guided interface for more interactive conversations and demos.",
+  },
+]
 
 function AboutSection() {
   return (
-<div id="about" className="w-full py-12 lg:py-20">      <div className="container mx-auto px-4">
-        <div className="flex flex-col gap-8">
+    <section id="about" className="w-full bg-[#F3F4F4] py-18 lg:py-24">
+      <div className="mx-auto max-w-6xl px-4">
+        <div className="mb-12 max-w-3xl">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#5F9598]">
+            About VaktarAI
+          </p>
+          <h2 className="text-4xl font-semibold tracking-tight text-[#061E29] md:text-5xl">
+            One simple workspace for creating talking avatars.
+          </h2>
+          <p className="mt-4 max-w-2xl text-base leading-8 text-[#1D546D]">
+            VaktarAI combines portrait animation, voice generation, and guided editing into a clean flow that helps you move from input to final video quickly.
+          </p>
+        </div>
 
-          {/* Header */}
-          <div className="flex gap-3 flex-col items-start">
-    
-            <div className="flex gap-1 flex-col">
-              <h2 className="text-3xl md:text-4xl tracking-tighter max-w-xl font-regular text-left">
-                What <em className="not-italic font-semibold" style={{ color: "#1D546D" }}>VaktarAI</em> does
-              </h2>
-            </div>
-          </div>
-
-          {/* Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-            {/* AI Avatar — spans 2 cols */}
-            <div className="bg-muted rounded-xl lg:col-span-2 p-5 flex flex-col justify-between gap-6 min-h-[220px]">
-  
-              <div className="flex flex-col gap-2">
-                <h3 className="text-lg tracking-tight">
-                  AI <em style={{ color: "#1D546D" }}>Avatar</em>
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
-                  Upload any photo and turn it into a fully animated, lip-synced video avatar. Remove backgrounds, add custom scenes, and bring your face alive.
-                </p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {["Photo to video", "Lip sync", "Background swap"].map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs px-3 py-1 rounded-full border"
-                      style={{ borderColor: "rgba(95,149,152,0.4)", color: "#F3F4F4F4", background: "#061E29" }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* What VaktarAI does */}
-            <div className="bg-muted rounded-xl p-5 flex flex-col justify-between gap-4 min-h-[220px]">
-              <div className="flex flex-col gap-2">
-                <h3 className="text-lg tracking-tight">
-                  What <em style={{ color: "#1D546D" }}>VaktarAI</em> does
-                </h3>
-                <div className="flex flex-col gap-1.5">
-                  {[
-                    { label: "  Videos", sub: "Photo + voice = talking avatar in seconds", active: false },
-                    { label: "Voice Generation", sub: "Realistic multi-language voice IDs", active: false },
-                    { label: "PDF Extraction & Summary", sub: "Upload any PDF, get instant AI summary", active: false },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex flex-col px-3 py-3 rounded-lg m-1"
-                      style={item.active ? { background: "#061E29" } : { background: "#5F9598" }}
-                    >
-                      <span className="font-medium text-xs" style={item.active ? { color: "white" } : { color: "#061E29" }}>
-                        {item.label}
-                      </span>
-                      <span className="text-xs" style={item.active ? { color: "#061E29" } : { color: "#061E29" }}>
-                        {item.sub}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {["For everyone", "No skills needed"].map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs px-3 py-1 rounded-full border"
-                      style={{ borderColor: "rgba(95,149,152,0.4)", color: "#F3F4F4F4", background: "#061E29" }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* AI Voice & Speech — full width */}
-            <div className="bg-muted rounded-xl lg:col-span-3 p-5 flex flex-col justify-between gap-4 min-h-[160px]">
-              <div className="flex flex-col gap-2">
-                <h3 className="text-lg tracking-tight">
-                  AI <em style={{ color: "#1D546D" }}>Voice & Speech</em>
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed max-w-2xl">
-                  Choose from multiple realistic voice IDs. Type your script and your avatar speaks it out loud — in any language, any tone, anywhere in the world.
-                </p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {["Text to speech", "Multi-language", "Voice IDs"].map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs px-3 py-1 rounded-full border"
-                      style={{ borderColor: "rgba(95,149,152,0.4)", color: "#F3F4F4F4", background: "#061E29" }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-          </div>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {features.map(({ title, body }) => (
+            <article
+              key={title}
+              className="rounded-[24px] border border-[#5F9598]/18 bg-white p-6 shadow-[0_14px_32px_rgba(6,30,41,0.06)]"
+            >
+              <h3 className="text-2xl font-semibold tracking-tight text-[#061E29]">{title}</h3>
+              <p className="mt-3 text-sm leading-7 text-[#1D546D]">{body}</p>
+            </article>
+          ))}
         </div>
       </div>
-    </div>
-  );
+    </section>
+  )
 }
 
-export { AboutSection };
+export { AboutSection }
