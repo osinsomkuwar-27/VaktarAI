@@ -13,50 +13,47 @@ interface Message {
 
 const VOICES: string[] = ['Shreeja', 'Osin', 'Soham', 'Kshitij', 'Tanishka', 'Bhargavi'];
 const LANGUAGES: string[] = [
-  'English', 'Hindi', 'Marathi', 'Bengali', 'Tamil',
-  'Telugu', 'Kannada', 'Gujarati', 'Punjabi',
-  'Spanish', 'French', 'German', 'Arabic', 'Japanese',
+  'Hindi', 'Marathi', 'Bengali', 'Tamil',
+  'Telugu', 'Gujarati', 'Kannada', 'Malayalam',
+  'Punjabi', 'Urdu',
 ];
 
 const LANGUAGE_CODES: Record<string, string> = {
-  English: 'en',
   Hindi: 'hi',
   Marathi: 'mr',
   Bengali: 'bn',
   Tamil: 'ta',
   Telugu: 'te',
-  Kannada: 'kn',
   Gujarati: 'gu',
+  Kannada: 'kn',
+  Malayalam: 'ml',
   Punjabi: 'pa',
-  Spanish: 'es',
-  French: 'fr',
-  German: 'de',
-  Arabic: 'ar',
-  Japanese: 'ja',
+  Urdu: 'ur',
 };
 
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap');
 
   .vaktar-chat {
-    --bg: #f7f5f2;
+    --bg: #F3F4F4;
     --surface: #ffffff;
-    --surface2: #f0eeea;
-    --surface3: #e6e2dc;
-    --sidebar-band: #f3f1ed;
-    --border: rgba(0, 0, 0, 0.08);
-    --navy: #0b023b;
-    --navy2: #124461;
-     --turquoise: #6b7c85;   /* muted blue-grey */
-    --lightblue: #397895;
-    --beige: #f5f2ec;
-    --beige2: #e8e4dc;
-    --accent: #6b7c85;
-    --accent-glow: rgba(107, 124, 133, 0.15);
-    --text: #2a2a2a;
-    --muted: #7a7a7a;
+    --surface2: #f6f8f8;
+    --surface3: #edf1f1;
+    --sidebar-band: #e9eeef;
+    --border: rgba(6, 30, 41, 0.10);
+    --navy: #061E29;
+    --navy2: #061E29;
+    --turquoise: #1D546D;
+    --lightblue: #5F9598;
+    --beige: #F3F4F4;
+    --beige2: rgba(95, 149, 152, 0.24);
+    --accent: #5F9598;
+    --accent-glow: rgba(29, 84, 109, 0.10);
+    --text: #061E29;
+    --muted: #5F9598;
     --nav-h: 72px;
-    --sidebar-w: 320px;
+    --sidebar-w: 380px;
+    position: relative;
   }
 
   .vaktar-chat *, .vaktar-chat *::before, .vaktar-chat *::after {
@@ -66,6 +63,17 @@ const CSS = `
   }
 
   /* ─── LAYOUT ─── */
+  .vaktar-chat .nav-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--nav-h);
+    background: #1D546D;
+    border-bottom: 1px solid rgba(243, 244, 244, 0.14);
+    z-index: 1;
+  }
+
   .vaktar-chat .layout {
     display: flex;
     height: 100vh;
@@ -79,32 +87,23 @@ const CSS = `
   .vaktar-chat .sidebar {
     width: var(--sidebar-w);
     flex-shrink: 0;
-    background: var(--surface);
-    border-right: 1.5px solid var(--beige2);
+    background: #1D546D;
+    border-right: 1px solid var(--beige2);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
     padding: 24px 18px;
     gap: 22px;
-    position: relative;
-  }
-
-  .vaktar-chat .sidebar::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--turquoise), var(--lightblue));
   }
 
   .vaktar-chat .sidebar-section { display: flex; flex-direction: column; gap: 8px; }
 
   .vaktar-chat .section-label {
     font-size: 0.68rem;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: #F3F4F4;
     padding: 0 4px;
   }
 
@@ -112,8 +111,8 @@ const CSS = `
     position: relative;
     border-radius: 14px;
     overflow: hidden;
-    border: 2px solid var(--turquoise);
-    box-shadow: 0 4px 16px rgba(42, 191, 191, 0.2);
+    border: 1px solid var(--beige2);
+    box-shadow: 0 8px 18px rgba(6, 30, 41, 0.06);
     cursor: pointer;
   }
 
@@ -127,7 +126,7 @@ const CSS = `
   .vaktar-chat .photo-preview-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(26, 46, 90, 0.55);
+    background: rgba(6, 30, 41, 0.54);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -146,19 +145,19 @@ const CSS = `
   .vaktar-chat .upload-box {
     border: 1.5px dashed var(--beige2);
     border-radius: 14px;
-    background: var(--beige);
+    background: #F3F4F4;
     padding: 22px 14px;
     text-align: center;
     cursor: pointer;
     transition: border-color 0.2s, background 0.2s;
   }
 
-  .vaktar-chat .upload-box:hover { border-color: var(--turquoise); background: var(--sidebar-band); }
+  .vaktar-chat .upload-box:hover { border-color: #F3F4F4; background: #F3F4F4; }
 
   .vaktar-chat .upload-icon {
     width: 40px; height: 40px;
     border-radius: 50%;
-    background: var(--surface3);
+    background: rgba(6, 30, 41, 0.06);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -167,15 +166,15 @@ const CSS = `
     border: 1px solid var(--beige2);
   }
 
-  .vaktar-chat .upload-box p { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
-  .vaktar-chat .upload-box small { font-size: 0.65rem; color: color-mix(in srgb, var(--muted) 60%, transparent); }
+  .vaktar-chat .upload-box p { font-size: 0.78rem; color: #061E29; line-height: 1.5; }
+  .vaktar-chat .upload-box small { font-size: 0.65rem; color: #5F9598; }
 
   .vaktar-chat .select-wrap { position: relative; }
 
   .vaktar-chat .select-wrap select {
     width: 100%;
     padding: 10px 32px 10px 12px;
-    background: var(--surface2);
+    background: #ffffff;
     border: 1px solid var(--border);
     border-radius: 10px;
     color: var(--text);
@@ -194,7 +193,7 @@ const CSS = `
     position: absolute;
     right: 12px; top: 50%;
     transform: translateY(-50%);
-    color: var(--muted);
+    color: var(--navy);
     pointer-events: none;
     font-size: 0.8rem;
   }
@@ -209,7 +208,7 @@ const CSS = `
     padding: 9px 8px;
     border-radius: 9px;
     text-align: center;
-    background: var(--surface2);
+    background: #ffffff;
     border: 1px solid var(--border);
     font-size: 0.8rem;
     color: var(--muted);
@@ -223,29 +222,29 @@ const CSS = `
   .vaktar-chat .voice-btn:hover {
     border-color: var(--turquoise);
     color: var(--navy);
-    background: var(--sidebar-band);
+    background: #F3F4F4;
   }
 
   .vaktar-chat .voice-btn.active {
-    background: color-mix(in srgb, var(--turquoise) 16%, #eef4f9);
-    border-color: var(--turquoise);
-    color: var(--turquoise);
+    background: #F3F4F4;
+    border-color: #F3F4F4;
+    color: #1D546D;
     font-weight: 500;
   }
 
   .vaktar-chat .voice-btn.active::before { content: '✓ '; }
 
-  .vaktar-chat .sidebar-divider { height: 1px; background: var(--beige2); margin: 2px 0; }
+  .vaktar-chat .sidebar-divider { height: 1px; background: rgba(243, 244, 244, 0.16); margin: 2px 0; }
 
   .vaktar-chat .sidebar-status { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
 
   .vaktar-chat .status-pill {
     padding: 10px 14px;
     border-radius: 12px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: rgba(243, 244, 244, 0.10);
+    border: 1px solid rgba(243, 244, 244, 0.14);
     font-size: 0.78rem;
-    color: var(--muted);
+    color: #F3F4F4;
     display: flex;
     align-items: center;
     gap: 9px;
@@ -255,7 +254,7 @@ const CSS = `
 
   .vaktar-chat .status-dot.ready {
     background: var(--turquoise);
-    box-shadow: 0 0 7px rgba(42, 191, 191, 0.5);
+    box-shadow: 0 0 0 4px rgba(95, 149, 152, 0.14);
   }
 
   .vaktar-chat .clear-btn {
@@ -266,8 +265,8 @@ const CSS = `
     padding: 10px 14px;
     border-radius: 12px;
     background: transparent;
-    border: 1px solid var(--beige2);
-    color: var(--muted);
+    border: 1px solid rgba(243, 244, 244, 0.18);
+    color: #F3F4F4;
     font-size: 0.78rem;
     cursor: pointer;
     transition: border-color 0.2s, color 0.2s, background 0.2s;
@@ -275,7 +274,7 @@ const CSS = `
     font-family: 'Taviraj', serif;
   }
 
-  .vaktar-chat .clear-btn:hover { border-color: #e05555; color: #c94444; background: rgba(220, 60, 60, 0.05); }
+  .vaktar-chat .clear-btn:hover { border-color: #F3F4F4; color: #F3F4F4; background: rgba(243, 244, 244, 0.08); }
 
   /* ─── SCROLLBAR ─── */
   .vaktar-chat ::-webkit-scrollbar { width: 5px; }
@@ -292,6 +291,7 @@ const CSS = `
     display: flex;
     flex-direction: column;
     gap: 24px;
+    background: #f7f8f8;
   }
 
   .vaktar-chat .msg-row { display: flex; gap: 12px; align-items: flex-end; max-width: 70%; }
@@ -307,13 +307,13 @@ const CSS = `
     justify-content: center;
     font-size: 0.75rem;
     font-weight: 700;
-    border: 2px solid #fff;
+    border: 1px solid rgba(6, 30, 41, 0.08);
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(26, 46, 90, 0.15);
+    box-shadow: 0 4px 10px rgba(6, 30, 41, 0.06);
   }
 
-  .vaktar-chat .msg-icon.ai-icon { background: linear-gradient(135deg, var(--navy), var(--turquoise)); color: #fff; }
-  .vaktar-chat .msg-icon.user-icon { background: linear-gradient(135deg, var(--lightblue), var(--accent)); color: #fff; }
+  .vaktar-chat .msg-icon.ai-icon { background: var(--navy); color: #fff; }
+  .vaktar-chat .msg-icon.user-icon { background: var(--lightblue); color: #fff; }
 
   .vaktar-chat .bubble { padding: 13px 18px; border-radius: 18px; line-height: 1.65; font-size: 0.9rem; position: relative; }
 
@@ -322,23 +322,24 @@ const CSS = `
     border: 1px solid var(--border);
     border-bottom-left-radius: 4px;
     color: var(--text);
-    box-shadow: 0 2px 10px rgba(26, 46, 90, 0.06);
+    box-shadow: 0 6px 14px rgba(6, 30, 41, 0.04);
   }
 
   .vaktar-chat .msg-row.user .bubble {
-    background: linear-gradient(135deg, var(--navy), var(--navy2));
+    background: rgba(6, 30, 41, 0.06);
+    border: 1px solid rgba(6, 30, 41, 0.10);
     border-bottom-right-radius: 4px;
-    color: #fff;
-    box-shadow: 0 4px 18px var(--accent-glow);
+    color: var(--navy);
+    box-shadow: none;
   }
 
   .vaktar-chat .msg-meta { font-size: 0.67rem; color: var(--muted); margin-top: 5px; padding: 0 4px; text-align: right; }
   .vaktar-chat .msg-row.avatar .msg-meta { text-align: left; }
 
   .vaktar-chat .bubble.error {
-    background: #fff5f5;
-    border: 1px solid rgba(220, 60, 60, 0.25);
-    color: #c94444;
+    background: #fff;
+    border: 1px solid rgba(95, 149, 152, 0.35);
+    color: var(--navy);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -367,7 +368,7 @@ const CSS = `
     padding: 16px 28px 18px;
     background: #fff;
     border-top: 1px solid var(--border);
-    box-shadow: 0 -2px 12px rgba(26, 46, 90, 0.05);
+    box-shadow: none;
   }
 
   .vaktar-chat .input-wrap {
@@ -383,7 +384,7 @@ const CSS = `
 
   .vaktar-chat .input-wrap:focus-within {
     border-color: var(--turquoise);
-    box-shadow: 0 0 0 3px rgba(42, 191, 191, 0.15);
+    box-shadow: 0 0 0 3px rgba(95, 149, 152, 0.12);
   }
 
   .vaktar-chat .input-wrap textarea {
@@ -408,13 +409,13 @@ const CSS = `
     width: 38px; height: 38px;
     border-radius: 11px;
     flex-shrink: 0;
-    background: linear-gradient(135deg, var(--navy), var(--accent));
+    background: var(--navy);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: opacity 0.2s, transform 0.2s;
-    box-shadow: 0 2px 10px var(--accent-glow);
+    box-shadow: none;
   }
 
   .vaktar-chat .send-btn:hover { opacity: 0.85; transform: scale(1.05); }
@@ -449,7 +450,7 @@ export default function VaktarChat({ askAvatar }: VaktarChatProps) {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string>('Shreeja');
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('English');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('Hindi');
   const [inputValue, setInputValue] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -581,6 +582,7 @@ export default function VaktarChat({ askAvatar }: VaktarChatProps) {
       <style>{CSS}</style>
 
       <div className="vaktar-chat">
+        <div className="nav-backdrop" />
         <div className="layout">
         <aside className="sidebar">
           <div className="sidebar-section">

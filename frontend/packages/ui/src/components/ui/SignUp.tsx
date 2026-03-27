@@ -89,14 +89,7 @@ export default function SignUp() {
         {/* Left Panel */}
         <div style={styles.leftPanel}>
           <div style={styles.logo}>
-            <div style={styles.logoIcon}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#061E29" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span style={styles.logoText}>
-              Vaktar<span style={styles.logoAccent}>AI</span>
-            </span>
+            <img src="/logo final.png" alt="VaktarAI" style={styles.logoImage} />
           </div>
 
           <div style={styles.tagline}>
@@ -325,22 +318,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 10,
     marginBottom: 40,
   },
-  logoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
-    background: "#F3F4F4",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+  logoImage: {
+    height: 44,
+    width: "auto",
+    display: "block",
+    objectFit: "contain",
   },
-  logoText: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#061E29",
-    letterSpacing: "-0.3px",
-  },
-  logoAccent: { color: "#5F9598" },
   tagline: { marginBottom: 12 },
   taglineMain: { fontSize: 28, fontWeight: 800, color: "#061E29", margin: 0, lineHeight: 1.2 },
   taglineAccent: { fontSize: 28, fontWeight: 800, color: "#5F9598", margin: 0, lineHeight: 1.2 },

@@ -11,28 +11,28 @@ interface VideoItem {
 // ── Data ───────────────────────────────────────────────────────────────────
 const VIDEOS: VideoItem[] = [
   {
-    src: "https://www.w3schools.com/html/mov_bbb.mp4",
-    poster: "https://images.unsplash.com/photo-1706374074975-b1b7e7e8e0f6?w=800&q=80",
-    title: "Neural Dreamscape",
-    desc: "Generative art · Vaktar v2",
+    src: "/avatar_videos/WhatsApp Video 2026-03-25 at 22.26.08.mp4",
+    poster: "",
+    title: "Avatar Showcase 01",
+    desc: "Generated avatar sample",
   },
   {
-    src: "https://www.w3schools.com/html/movie.mp4",
-    poster: "https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=800&q=80",
-    title: "Digital Horizon",
-    desc: "Concept render · Vaktar v2",
+    src: "/avatar_videos/WhatsApp Video 2026-03-25 at 22.26.08 (1).mp4",
+    poster: "",
+    title: "Avatar Showcase 02",
+    desc: "Generated avatar sample",
   },
   {
-    src: "https://www.w3schools.com/html/mov_bbb.mp4",
-    poster: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800&q=80",
-    title: "Quantum Bloom",
-    desc: "Abstract series · Vaktar v3",
+    src: "/avatar_videos/WhatsApp Video 2026-03-25 at 22.26.08 (2).mp4",
+    poster: "",
+    title: "Avatar Showcase 03",
+    desc: "Generated avatar sample",
   },
   {
-    src: "https://www.w3schools.com/html/movie.mp4",
-    poster: "https://images.unsplash.com/photo-1639762681057-408e52192e55?w=800&q=80",
-    title: "Synthetic Eden",
-    desc: "Landscape · Vaktar v3",
+    src: "/avatar_videos/WhatsApp Video 2026-03-25 at 22.26.08 (3).mp4",
+    poster: "",
+    title: "Avatar Showcase 04",
+    desc: "Generated avatar sample",
   },
 ]
 
@@ -72,6 +72,13 @@ const CSS = `
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; text-align: center;
     padding: calc(var(--nav-h) + 48px) 24px 40px;
+  }
+  .vg-hero-logo {
+    width: 150px;
+    height: auto;
+    display: block;
+    margin-bottom: 18px;
+    object-fit: contain;
   }
   .vg-hero-tag {
     display: inline-flex; align-items: center; gap: 8px;
@@ -125,7 +132,10 @@ const CSS = `
 
   .vg-card video {
     width: 100%; height: 100%;
-    object-fit: cover; display: block;
+    object-fit: contain;
+    object-position: center top;
+    display: block;
+    background: #162434;
   }
 
   /* ── OVERLAY (shown when not playing) ── */
@@ -189,9 +199,78 @@ const CSS = `
     margin-left: 4px;
   }
 
-  /* pause icon shown when playing */
-  .vg-pause-icon svg {
-    margin-left: 0;
+  .vg-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 30, 41, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 80;
+  }
+
+  .vg-modal {
+    width: min(980px, 100%);
+    background: #f2ece0;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 28px 60px rgba(22, 36, 52, 0.28);
+  }
+
+  .vg-modal-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    background: #f7f1e6;
+  }
+
+  .vg-modal-title {
+    font-family: 'Taviraj', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--navy);
+  }
+
+  .vg-modal-desc {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .vg-modal-close {
+    all: unset;
+    box-sizing: border-box;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .vg-modal-player {
+    background: #162434;
+    padding: 18px;
+  }
+
+  .vg-modal-player video {
+    width: 100%;
+    max-height: 72vh;
+    display: block;
+    background: #162434;
+    object-fit: contain;
+    object-position: center top;
+    border-radius: 16px;
   }
 
   /* ── FOOTER ── */
@@ -204,10 +283,15 @@ const CSS = `
     flex-shrink: 0;
   }
   .vg-footer-brand {
-    font-family: 'Taviraj', serif; font-weight: 600;
-    font-size: 0.95rem; color: var(--beige);
+    display: flex;
+    align-items: center;
   }
-  .vg-footer-brand span { color: var(--pale); }
+  .vg-footer-brand img {
+    height: 30px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
   .vg-footer-links { display: flex; gap: 24px; }
   .vg-footer-links a {
     font-size: 0.8rem; color: var(--pale);
@@ -223,43 +307,29 @@ const CSS = `
 `
 
 // ── Video Card ─────────────────────────────────────────────────────────────
-function VideoCard({ video }: { video: VideoItem }) {
+function VideoCard({ video, onOpen }: { video: VideoItem; onOpen: (video: VideoItem) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [playing, setPlaying] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
 
   const handleMouseEnter = () => {
-    if (!playing && videoRef.current) {
+    if (videoRef.current) {
       videoRef.current.currentTime = 0
       videoRef.current.muted = true
       videoRef.current.play()
+      setPreviewing(true)
     }
   }
 
   const handleMouseLeave = () => {
-    if (!playing && videoRef.current) {
+    if (videoRef.current) {
       videoRef.current.pause()
       videoRef.current.currentTime = 0
-    }
-  }
-
-  const handleClick = () => {
-    const vid = videoRef.current
-    if (!vid) return
-
-    if (playing) {
-      vid.pause()
-      vid.currentTime = 0
-      vid.muted = true
-      setPlaying(false)
-    } else {
-      vid.muted = false
-      vid.play()
-      setPlaying(true)
+      setPreviewing(false)
     }
   }
 
   const handleVideoEnded = () => {
-    setPlaying(false)
+    setPreviewing(false)
     if (videoRef.current) {
       videoRef.current.currentTime = 0
       videoRef.current.muted = true
@@ -268,10 +338,10 @@ function VideoCard({ video }: { video: VideoItem }) {
 
   return (
     <div
-      className={`vg-card${playing ? " playing" : ""}`}
+      className={`vg-card${previewing ? " playing" : ""}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onClick={handleClick}
+      onClick={() => onOpen(video)}
     >
       <video
         ref={videoRef}
@@ -285,18 +355,9 @@ function VideoCard({ video }: { video: VideoItem }) {
 
       <div className="vg-overlay">
         <div className="vg-play-btn">
-          {playing ? (
-            /* Pause icon */
-            <svg viewBox="0 0 24 24" fill="#fff" style={{ marginLeft: 0 }}>
-              <rect x="5" y="3" width="4" height="18" rx="1" />
-              <rect x="15" y="3" width="4" height="18" rx="1" />
-            </svg>
-          ) : (
-            /* Play icon */
-            <svg viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          )}
+          <svg viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
         </div>
         <div className="vg-caption">
           <h3>{video.title}</h3>
@@ -309,12 +370,15 @@ function VideoCard({ video }: { video: VideoItem }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function VaktarGallery() {
+  const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null)
+
   return (
     <div className="vg-root">
       <style>{CSS}</style>
 
       {/* Hero */}
       <section className="vg-hero">
+        <img className="vg-hero-logo" src="/logo final.png" alt="VaktarAI" />
         <div className="vg-hero-tag">✦ Visual Gallery</div>
         <h1 className="vg-hero-title">
           Moments <span>Captured</span>
@@ -329,13 +393,39 @@ export default function VaktarGallery() {
       {/* 2×2 Video Grid */}
       <section className="vg-grid">
         {VIDEOS.map((video, i) => (
-          <VideoCard key={i} video={video} />
+          <VideoCard key={i} video={video} onOpen={setActiveVideo} />
         ))}
       </section>
 
+      {activeVideo && (
+        <div className="vg-modal-backdrop" onClick={() => setActiveVideo(null)}>
+          <div className="vg-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="vg-modal-top">
+              <div>
+                <div className="vg-modal-title">{activeVideo.title}</div>
+                <div className="vg-modal-desc">{activeVideo.desc}</div>
+              </div>
+              <button className="vg-modal-close" onClick={() => setActiveVideo(null)} aria-label="Close video">
+                ×
+              </button>
+            </div>
+            <div className="vg-modal-player">
+              <video
+                src={activeVideo.src}
+                controls
+                autoPlay
+                playsInline
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="vg-footer">
-        <div className="vg-footer-brand">Vaktar <span>AI</span></div>
+        <div className="vg-footer-brand">
+          <img src="/logo final.png" alt="VaktarAI" />
+        </div>
         <div className="vg-footer-links">
           {["Privacy", "Terms", "Docs", "Contact"].map((l) => (
             <a key={l} href="#">{l}</a>

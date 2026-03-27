@@ -1,6 +1,4 @@
 import React from "react"
-import { Brain } from "lucide-react"
-
 const platformLinks = [
   "AI Avatar Generation",
   "Text-to-Video Avatars",
@@ -22,10 +20,11 @@ const Footer: React.FC = () => {
         <div className="grid gap-12 border-b border-[#1D546D]/35 pb-12 lg:grid-cols-[1.25fr_0.8fr_0.8fr_1.1fr]">
           <div className="max-w-sm">
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1D546D] text-white">
-                <Brain className="h-5 w-5" />
-              </div>
-              <span className="text-xl font-bold tracking-tight">VaktarAI</span>
+              <img
+                src="/logo final.png"
+                alt="VaktarAI"
+                className="h-12 w-auto object-contain"
+              />
             </div>
 
             <p className="text-sm leading-7 text-[#5F9598]">

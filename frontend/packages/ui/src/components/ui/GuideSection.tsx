@@ -4,35 +4,35 @@ const steps = [
   {
     title: "Upload Portrait",
     desc: "Start by uploading a portrait photo or capturing one from your device.",
-    images: ["/guide_photos/Screenshot 2026-03-27 at 7.42.07 AM.png"],
+    images: ["/guide_photos/guide1.png"],
   },
   {
     title: "Choose Background",
     desc: "Open the background picker and choose a scene from the curated categories.",
     images: [
-      "/guide_photos/Screenshot 2026-03-27 at 7.44.32 AM.png",
-      "/guide_photos/Screenshot 2026-03-27 at 7.45.40 AM.png",
+      "/guide_photos/guide2.png",
+      "/guide_photos/guide3.png",
     ],
   },
   {
     title: "Write the Message",
     desc: "Type the script your avatar should speak before generating the video.",
-    images: ["/guide_photos/Screenshot 2026-03-27 at 7.45.58 AM.png"],
+    images: ["/guide_photos/guide4.png"],
   },
   {
     title: "Choose the Voice",
     desc: "Select the speaker and language that best match your final output.",
-    images: ["/guide_photos/Screenshot 2026-03-27 at 7.50.25 AM.png"],
+    images: ["/guide_photos/guide5.png"],
   },
   {
     title: "Generate Video",
     desc: "Click generate to create the final talking avatar from your settings.",
-    images: ["/guide_photos/Screenshot 2026-03-27 at 7.52.43 AM.png"],
+    images: ["/guide_photos/guide6.png"],
   },
   {
     title: "Download Result",
     desc: "Once the video is ready, download it directly from the preview area.",
-    images: ["/guide_photos/Screenshot 2026-03-27 at 7.53.21 AM.png"],
+    images: ["/guide_photos/guide7.png"],
   },
 ]
 

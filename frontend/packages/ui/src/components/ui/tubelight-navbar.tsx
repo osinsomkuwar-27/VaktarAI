@@ -37,6 +37,7 @@ export function NavBar({ items, className }: NavBarProps) {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("Home")
   const [isMobile, setIsMobile] = useState(false)
+  const isChatPage = location.pathname === "/chat"
 
   const navItems = useMemo(() => {
     if (items?.length) return items
@@ -79,7 +80,8 @@ export function NavBar({ items, className }: NavBarProps) {
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-1/2 z-50 mb-6 -translate-x-1/2 sm:top-0 sm:bottom-auto sm:mt-6",
+        "fixed bottom-0 left-1/2 z-50 mb-6 -translate-x-1/2 sm:bottom-auto",
+        isChatPage ? "sm:top-3" : "sm:top-0 sm:mt-6",
         "pointer-events-none",
         className
       )}
