@@ -1,23 +1,34 @@
 const PIPELINE_URL = import.meta.env.VITE_PIPELINE_URL
 const VOICE_URL = import.meta.env.VITE_VOICE_URL
 
-/**
- * generateAvatar
- * Called by CreatePage handleGenerate()
- */
+type Background =
+  | { type: 'color'; value: string }
+  | { type: 'image'; file: File }
+  | null
 
+/**
+ * generateAvatar — sends photo + text + background to /generate-video
+ */
 export async function generateAvatar(
-  imageFile,
-  text,
-  onUploadProgress = () => {},
+  imageFile: File,
+  text: string,
+  onUploadProgress: (pct: number) => void = () => {},
   targetLanguage = 'hi',
-  speaker = 'shreeja'
+  speaker = 'shreeja',
+  background: Background = null
 ) {
   const formData = new FormData()
   formData.append('photo', imageFile)
   formData.append('text', text)
   formData.append('target_language', targetLanguage)
   formData.append('speaker', speaker)
+
+  // ── Send background to backend ──────────────────────────────────────────
+  if (background?.type === 'color') {
+    formData.append('background_color', background.value)
+  } else if (background?.type === 'image') {
+    formData.append('background_image', background.file)
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -48,13 +59,11 @@ export async function generateAvatar(
 }
 
 /**
- * askAvatar
- * Called by ChatPage — sends question to /ask-and-generate
- * Returns { answer, video_url, llm_source, session_id }
+ * askAvatar — ChatPage
  */
 export async function askAvatar(
-  photoFile,
-  question,
+  photoFile: File,
+  question: string,
   targetLanguage = 'en',
   speaker = 'shreeja'
 ) {
@@ -71,33 +80,25 @@ export async function askAvatar(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || `Request failed: ${res.status}`)
+    throw new Error((err as { detail?: string }).detail || `Request failed: ${res.status}`)
   }
 
   return res.json()
 }
 
-/**
- * synthesizeVoice
- */
-export async function synthesizeVoice(text, speaker = 'shreeja') {
+export async function synthesizeVoice(text: string, speaker = 'shreeja') {
   const res = await fetch(`${VOICE_URL}/synthesize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ssml: text, speaker })
   })
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || `Voice synthesis failed: ${res.status}`)
+    throw new Error((err as { detail?: string }).detail || `Voice synthesis failed: ${res.status}`)
   }
-
   return res.blob()
 }
 
-/**
- * getAvailableSpeakers
- */
 export async function getAvailableSpeakers() {
   const res = await fetch(`${VOICE_URL}/speakers`)
   if (!res.ok) throw new Error('Could not fetch speakers list')

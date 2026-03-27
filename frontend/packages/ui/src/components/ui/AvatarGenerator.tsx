@@ -221,12 +221,18 @@ const selectStyle: React.CSSProperties = {
 }
 
 // ─── Main ──────────────────────────────────────────────────────────
+type Background =
+  | { type: 'color'; value: string }
+  | { type: 'image'; file: File }
+  | null
+
 type GenerateAvatarFn = (
   imageFile: File,
   text: string,
   onUploadProgress?: (pct: number) => void,
   targetLanguage?: string,
-  speaker?: string
+  speaker?: string,
+  background?: Background
 ) => Promise<{ video_url: string; [key: string]: unknown }>
 
 interface AvatarGeneratorProps {
@@ -241,6 +247,7 @@ export default function AvatarGenerator({
   const [portrait, setPortrait] = useState<string | null>(null)
   const [portraitFile, setPortraitFile] = useState<File | null>(null)
   const [bgRemoved, setBgRemoved] = useState(false)
+  const [bgRemoving, setBgRemoving] = useState(false)
   const portraitInputRef = useRef<HTMLInputElement>(null)
   const cameraVideoRef = useRef<HTMLVideoElement>(null)
   const cameraStreamRef = useRef<MediaStream | null>(null)
@@ -264,6 +271,7 @@ export default function AvatarGenerator({
   const [bgColor, setBgColor] = useState("#0D1B2A")
   const [bgImage, setBgImage] = useState<string | null>(null)
   const [bgImageName, setBgImageName] = useState<string | null>(null)
+  const [bgImageFile, setBgImageFile] = useState<File | null>(null)
   const [bgHover, setBgHover] = useState(false)
   const [scenePickerOpen, setScenePickerOpen] = useState(false)
   const [scenePickerTab, setScenePickerTab] = useState<
@@ -339,25 +347,62 @@ export default function AvatarGenerator({
     if (file) {
       setBgImage(URL.createObjectURL(file))
       setBgImageName(file.name)
+      setBgImageFile(file)
     }
   }
-  const handleSceneSelect = (scene: (typeof SCENE_BACKGROUNDS)[number]) => {
+  const handleSceneSelect = async (scene: (typeof SCENE_BACKGROUNDS)[number]) => {
     setBgImage(scene.image)
     setBgImageName(scene.name)
+    setBgImageFile(null) // will update async below
     setScenePickerOpen(false)
+    try {
+      const res = await fetch(scene.image)
+      const blob = await res.blob()
+      const ext = scene.image.split('.').pop() ?? 'jpeg'
+      setBgImageFile(new File([blob], `bg_${scene.name}.${ext}`, { type: blob.type || 'image/jpeg' }))
+    } catch {
+      // couldn't prefetch — fall back to color
+      setBgImageFile(null)
+    }
   }
   const handleColorSelect = (color: string) => {
     setBgColor(color)
     setBgImage(null)
     setBgImageName(null)
+    setBgImageFile(null)
     setScenePickerOpen(false)
   }
-  const handleRemoveBg = () => {
-    if (portrait) setBgRemoved(true)
+  const handleRemoveBg = async () => {
+    if (!portraitFile || bgRemoving || bgRemoved) return
+    setBgRemoving(true)
+    try {
+      const formData = new FormData()
+      formData.append("image_file", portraitFile)
+      formData.append("size", "auto")
+      const response = await fetch("https://api.remove.bg/v1.0/removebg", {
+        method: "POST",
+        headers: { "X-Api-Key": import.meta.env.VITE_REMOVEBG_API_KEY },
+        body: formData,
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({})) as { errors?: { title?: string }[] }
+        throw new Error(err?.errors?.[0]?.title ?? `remove.bg error ${response.status}`)
+      }
+      const blob = await response.blob()
+      setPortrait(URL.createObjectURL(blob))
+      setPortraitFile(new File([blob], "portrait_nobg.png", { type: "image/png" }))
+      setBgRemoved(true)
+    } catch (err) {
+      console.error("BG removal failed:", err)
+      alert(err instanceof Error ? err.message : "Background removal failed")
+    } finally {
+      setBgRemoving(false)
+    }
   }
   const handleRemovePortrait = () => {
     setPortrait(null)
     setBgRemoved(false)
+    setBgRemoving(false)
   }
   const handleCapturePhoto = async () => {
     const video = cameraVideoRef.current
@@ -384,6 +429,67 @@ export default function AvatarGenerator({
     setPortraitTab("upload")
     stopCamera()
   }
+  // Composites background + portrait into one JPEG and returns it as a File.
+  // The canvas receives this single image so the backend never needs to know
+  // about separate background/portrait — it just gets one composed photo.
+  const compositeImage = async (): Promise<File> => {
+    const W = 1280
+    const H = 720
+    const canvas = document.createElement("canvas")
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext("2d")!
+
+    const loadImage = (src: string): Promise<HTMLImageElement> =>
+      new Promise((resolve, reject) => {
+        const img = new Image()
+        // crossOrigin only for server-hosted images, NOT blob: / data: URLs
+        if (!src.startsWith("blob:") && !src.startsWith("data:")) {
+          img.crossOrigin = "anonymous"
+        }
+        img.onload = () => resolve(img)
+        img.onerror = () => reject(new Error(`Image load failed: ${src.slice(0, 80)}`))
+        img.src = src
+      })
+
+    // 1. Background layer
+    if (bgImage) {
+      try {
+        const img = await loadImage(bgImage)
+        const scale = Math.max(W / img.width, H / img.height)
+        const sw = img.width * scale
+        const sh = img.height * scale
+        ctx.drawImage(img, (W - sw) / 2, (H - sh) / 2, sw, sh)
+      } catch {
+        ctx.fillStyle = bgColor
+        ctx.fillRect(0, 0, W, H)
+      }
+    } else {
+      ctx.fillStyle = bgColor
+      ctx.fillRect(0, 0, W, H)
+    }
+
+    // 2. Portrait layer — bottom-centered, 90% height
+    if (portrait) {
+      const img = await loadImage(portrait)
+      const ph = H * 0.9
+      const pw = (img.width / img.height) * ph
+      ctx.drawImage(img, (W - pw) / 2, H - ph, pw, ph)
+    }
+
+    // 3. Export as JPEG File
+    return new Promise<File>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { reject(new Error("Canvas export failed")); return }
+          resolve(new File([blob], "composed_portrait.jpg", { type: "image/jpeg" }))
+        },
+        "image/jpeg",
+        0.92
+      )
+    })
+  }
+
   const handleGenerate = async () => {
     if (!portraitFile) {
       setGenError("Please upload a portrait photo first.")
@@ -413,8 +519,11 @@ export default function AvatarGenerator({
     }
 
     try {
+      // Merge background + portrait into one image, send to backend as `photo`
+      const composedFile = await compositeImage()
+
       const result = await generateAvatar(
-        portraitFile,
+        composedFile,
         message,
         (pct) => setProgress(pct),
         langCode[language] ?? "en",
@@ -666,21 +775,23 @@ export default function AvatarGenerator({
                     Retake
                   </button>
                   <button
-                    onClick={handleRemoveBg}
+                    onClick={() => void handleRemoveBg()}
+                    disabled={bgRemoving || bgRemoved}
                     style={{
                       padding: "8px 16px",
                       borderRadius: "8px",
                       fontSize: "12px",
                       fontFamily: "inherit",
                       fontWeight: 600,
-                      cursor: "pointer",
-                      background: bgRemoved ? C.navy : C.navy,
-                      color: bgRemoved ? "#10b981" : C.white,
+                      cursor: bgRemoving || bgRemoved ? "not-allowed" : "pointer",
+                      background: C.navy,
+                      color: bgRemoved ? "#10b981" : bgRemoving ? C.muted : C.white,
                       border: bgRemoved ? "1.5px solid #10b981" : "none",
+                      opacity: bgRemoving ? 0.7 : 1,
                       transition: "all 0.15s",
                     }}
                   >
-                    {bgRemoved ? "✓ BG Removed" : "Remove BG"}
+                    {bgRemoving ? "Removing…" : bgRemoved ? "✓ BG Removed" : "Remove BG"}
                   </button>
                   <button
                     onClick={handleRemovePortrait}
@@ -1087,9 +1198,7 @@ export default function AvatarGenerator({
 
               {/* Remove Background card */}
               <div
-                onClick={() => {
-                  if (portrait) handleRemoveBg()
-                }}
+                onClick={() => { if (portrait && !bgRemoving && !bgRemoved) void handleRemoveBg() }}
                 style={{
                   flex: 1,
                   minWidth: "240px",
@@ -1160,14 +1269,16 @@ export default function AvatarGenerator({
                       transition: "color 0.2s",
                     }}
                   >
-                    {bgRemoved ? "BG Removed!" : "Remove Background"}
+                    {bgRemoved ? "BG Removed!" : bgRemoving ? "Removing…" : "Remove Background"}
                   </p>
                   <p style={{ margin: 0, fontSize: "10.5px", color: C.muted }}>
                     {!portrait
                       ? "Upload portrait first"
                       : bgRemoved
                         ? "Portrait is transparent"
-                        : "Erase portrait BG"}
+                        : bgRemoving
+                          ? "Processing with remove.bg…"
+                          : "Erase portrait BG"}
                   </p>
                 </div>
               </div>
@@ -1970,87 +2081,65 @@ export default function AvatarGenerator({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  overflow: "hidden",
                 }}
               >
-                {/* Placeholder / generating state */}
+                {/* ── Background layer (always visible before video) ── */}
                 {!generated && (
-                  <div style={{ textAlign: "center" }}>
-                    <div
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: bgImage ? undefined : bgColor,
+                    backgroundImage: bgImage ? `url("${bgImage}")` : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    transition: "background 0.3s",
+                  }} />
+                )}
+
+                {/* ── Portrait composited over background ── */}
+                {!generated && portrait && (
+                  <>
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.3) 0%, transparent 55%)", pointerEvents: "none" }} />
+                    <img
+                      src={portrait}
+                      alt="portrait"
                       style={{
-                        width: "80px",
-                        height: "80px",
-                        borderRadius: "50%",
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        margin: "0 auto 18px",
+                        position: "absolute", bottom: 0, left: "50%",
+                        transform: "translateX(-50%)",
+                        height: "92%", width: "auto",
+                        objectFit: "contain", objectPosition: "bottom",
+                        filter: bgRemoved ? "none" : "drop-shadow(0 8px 28px rgba(0,0,0,0.5))",
                       }}
-                    >
-                      <svg
-                        width="34"
-                        height="34"
-                        viewBox="0 0 30 30"
-                        fill="none"
-                      >
-                        <circle
-                          cx="15"
-                          cy="10"
-                          r="5.5"
-                          stroke="rgba(255,255,255,0.25)"
-                          strokeWidth="1.5"
-                        />
-                        <path
-                          d="M4 27c0-6.075 4.925-11 11-11s11 4.925 11 11"
-                          stroke="rgba(255,255,255,0.25)"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        />
+                    />
+                    <div style={{
+                      position: "absolute", top: 12, left: 12,
+                      background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)",
+                      borderRadius: 6, padding: "4px 10px",
+                      fontSize: 10, fontWeight: 600,
+                      color: "rgba(255,255,255,0.75)", letterSpacing: "0.08em",
+                      textTransform: "uppercase", pointerEvents: "none",
+                    }}>Preview</div>
+                  </>
+                )}
+
+                {/* ── Placeholder: no portrait yet ── */}
+                {!generated && !portrait && (
+                  <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
+                    <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
+                      <svg width="34" height="34" viewBox="0 0 30 30" fill="none">
+                        <circle cx="15" cy="10" r="5.5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
+                        <path d="M4 27c0-6.075 4.925-11 11-11s11 4.925 11 11" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
                       </svg>
                     </div>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: "14px",
-                        color: "rgba(255,255,255,0.3)",
-                        fontWeight: 500,
-                        letterSpacing: "0.01em",
-                      }}
-                    >
-                      {generating
-                        ? "Generating your avatar…"
-                        : genError
-                          ? "Generation failed"
-                          : "Your avatar will appear here"}
+                    <p style={{ margin: 0, fontSize: "13px", color: "rgba(255,255,255,0.45)", fontWeight: 500 }}>
+                      {generating ? "Generating your avatar…" : genError ? "Generation failed" : "Upload a portrait to preview"}
                     </p>
-                    {generating && (
-                      <p
-                        style={{
-                          margin: "6px 0 0",
-                          fontSize: "11.5px",
-                          color: "rgba(255,255,255,0.18)",
-                        }}
-                      >
-                        {Math.round(progress * 100)}% complete
-                      </p>
-                    )}
-                    {genError && (
-                      <p
-                        style={{
-                          margin: "8px 0 0",
-                          fontSize: "11.5px",
-                          color: "#f87171",
-                          maxWidth: "260px",
-                        }}
-                      >
-                        ⚠ {genError}
-                      </p>
-                    )}
+                    {generating && <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "rgba(255,255,255,0.25)" }}>{Math.round(progress * 100)}% complete</p>}
+                    {genError && <p style={{ margin: "8px 0 0", fontSize: "11.5px", color: "#f87171", maxWidth: "260px" }}>⚠ {genError}</p>}
                   </div>
                 )}
 
-                {/* Ready — real video player */}
+                {/* ── Video player after generation ── */}
                 {generated && videoUrl && (
                   <video
                     key={videoUrl}
@@ -2058,9 +2147,9 @@ export default function AvatarGenerator({
                     controls
                     autoPlay
                     style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
+                      position: "absolute", inset: 0,
+                      width: "100%", height: "100%",
+                      objectFit: "cover",
                       borderRadius: "16px",
                     }}
                   />
