@@ -426,7 +426,6 @@ const CSS = `
     .vaktar-chat .msg-row { max-width: 90%; }
   }
 `;
-
 function getTime(): string {
   return new Date().toLocaleTimeString('en-US', {
     hour: '2-digit',

@@ -4,6 +4,7 @@ import {
   ReactNode,
   DragEvent,
   ChangeEvent,
+  useEffect,
 } from "react";
 
 // ─── Design tokens ─────────────────────────────────────────────────
@@ -20,7 +21,85 @@ const C = {
 const LANGUAGES = ["Hindi", "English", "Spanish", "French", "German", "Japanese", "Mandarin", "Arabic", "Portuguese"] as const;
 const SPEAKERS  = ["bhargavi", "tanishka", "soham", "osin", "kshitij", "shreeja"] as const;
 
-const BG_PRESETS = ["#0D1B2A", "#1D546D", "#061E29", "#F3F4F4", "#10b981", "#6366f1", "#f59e0b", "#ef4444"];
+const BG_PRESETS = [
+  "#061E29",
+  "#1D546D",
+  "#5F9598",
+  "#F3F4F4",
+  "#FF6B6B",
+  "#FFD166",
+  "#06D6A0",
+  "#118AB2",
+  "#8338EC",
+  "#FB5607",
+  "#3A86FF",
+  "#2A9D8F",
+  "#E76F51",
+  "#8D99AE",
+];
+
+const SCENE_BACKGROUNDS = [
+  {
+    name: "Modern Office",
+    description: "Workspace scene with a polished professional feel",
+    category: "Professional",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.02.59.jpeg",
+  },
+  {
+    name: "Boardroom",
+    description: "Executive meeting room with a premium setup",
+    category: "Professional",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.02.59 (2).jpeg",
+  },
+  {
+    name: "Classroom",
+    description: "Learning environment for lessons and demos",
+    category: "Educational",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.03.00.jpeg",
+  },
+  {
+    name: "Library",
+    description: "Quiet study backdrop with shelves and depth",
+    category: "Educational",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.03.06.jpeg",
+  },
+  {
+    name: "Lounge",
+    description: "Soft casual interior for relaxed presentations",
+    category: "Casual",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.02.59 (3).jpeg",
+  },
+  {
+    name: "Cafe Corner",
+    description: "Warm social setting for friendly conversations",
+    category: "Casual",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.03.06 (1).jpeg",
+  },
+  {
+    name: "White Studio",
+    description: "Minimal clean backdrop with a production look",
+    category: "Abstract",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.03.06 (2).jpeg",
+  },
+  {
+    name: "Creative Set",
+    description: "Stylized scene for a more artistic presentation",
+    category: "Abstract",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.03.11.jpeg",
+  },
+  {
+    name: "Tech Space",
+    description: "Modern setup for product explainers and demos",
+    category: "Professional",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.03.12.jpeg",
+  },
+  {
+    name: "Study Nook",
+    description: "Focused educational corner for tutoring content",
+    category: "Educational",
+    image: "/backgrounds/WhatsApp Image 2026-03-26 at 19.03.13.jpeg",
+  },
+] as const;
 
 function Label({ children, style = {} }: { children: ReactNode; style?: React.CSSProperties }) {
   return (
@@ -93,6 +172,10 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   const [portraitFile, setPortraitFile]   = useState<File | null>(null);
   const [bgRemoved, setBgRemoved]         = useState(false);
   const portraitInputRef = useRef<HTMLInputElement>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [inputMode, setInputMode]     = useState<"type" | "document">("type");
   const [message, setMessage]         = useState("");
@@ -111,14 +194,45 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   const [bgImage, setBgImage]         = useState<string | null>(null);
   const [bgImageName, setBgImageName] = useState<string | null>(null);
   const [bgHover, setBgHover]         = useState(false);
+  const [scenePickerOpen, setScenePickerOpen] = useState(false);
+  const [scenePickerTab, setScenePickerTab] = useState<"scenes" | "solid" | "upload">("scenes");
+  const [sceneCategory, setSceneCategory] = useState<"Professional" | "Educational" | "Casual" | "Abstract">("Professional");
   const bgInputRef = useRef<HTMLInputElement>(null);
-  const colorPickerRef = useRef<HTMLInputElement>(null);
 
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated]   = useState(false);
   const [progress, setProgress]     = useState(0);
   const [videoUrl, setVideoUrl]     = useState<string | null>(null);
   const [genError, setGenError]     = useState<string | null>(null);
+
+  const stopCamera = () => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    if (cameraVideoRef.current) {
+      cameraVideoRef.current.srcObject = null;
+    }
+    setCameraOpen(false);
+  };
+
+  const startCamera = async () => {
+    try {
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+
+      cameraStreamRef.current = stream;
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+        await cameraVideoRef.current.play();
+      }
+      setCameraOpen(true);
+    } catch {
+      setCameraError("Camera access was blocked or unavailable. Please allow camera permission and try again.");
+      setCameraOpen(false);
+    }
+  };
 
   const handlePortrait = (file: File | null) => {
     if (file) {
@@ -142,12 +256,46 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   const handleBgUpload = (file: File | null) => {
     if (file) { setBgImage(URL.createObjectURL(file)); setBgImageName(file.name); }
   };
+  const handleSceneSelect = (scene: typeof SCENE_BACKGROUNDS[number]) => {
+    setBgImage(scene.image);
+    setBgImageName(scene.name);
+    setScenePickerOpen(false);
+  };
+  const handleColorSelect = (color: string) => {
+    setBgColor(color);
+    setBgImage(null);
+    setBgImageName(null);
+    setScenePickerOpen(false);
+  };
   const handleRemoveBg = () => {
     if (portrait) setBgRemoved(true);
   };
   const handleRemovePortrait = () => {
     setPortrait(null);
     setBgRemoved(false);
+  };
+  const handleCapturePhoto = async () => {
+    const video = cameraVideoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.95);
+    });
+
+    if (!blob) return;
+
+    const file = new File([blob], `camera-portrait-${Date.now()}.jpg`, { type: "image/jpeg" });
+    handlePortrait(file);
+    setPortraitTab("upload");
+    stopCamera();
   };
   const handleGenerate = async () => {
     if (!portraitFile) {
@@ -190,6 +338,26 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
   };
 
   const wordCount = message.trim() ? message.trim().split(/\s+/).length : 0;
+
+  useEffect(() => {
+    if (portraitTab === "camera" && !portrait) {
+      void startCamera();
+    }
+
+    if (portraitTab !== "camera") {
+      stopCamera();
+    }
+
+    return () => {
+      if (portraitTab === "camera") {
+        stopCamera();
+      }
+    };
+  }, [portraitTab, portrait]);
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
 
   return (
     <div style={{
@@ -282,6 +450,12 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
                     Upload
                   </button>
                   <button
+                    onClick={() => {
+                      setPortrait(null);
+                      setPortraitFile(null);
+                      setBgRemoved(false);
+                      setPortraitTab("camera");
+                    }}
                     style={{
                       padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
                       fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
@@ -319,6 +493,94 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
                 </div>
                 <input ref={portraitInputRef} type="file" accept="image/*" style={{ display: "none" }}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => handlePortrait(e.target.files?.[0] ?? null)} />
+              </div>
+            ) : portraitTab === "camera" ? (
+              <div style={{
+                border: `1px solid ${C.border}`,
+                borderRadius: "12px",
+                padding: "18px",
+                background: C.bg,
+              }}>
+                <div style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  borderRadius: "12px",
+                  background: C.navy,
+                  minHeight: "260px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "14px",
+                }}>
+                  {cameraOpen ? (
+                    <video
+                      ref={cameraVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{ width: "100%", height: "260px", objectFit: "cover", display: "block", transform: "scaleX(-1)" }}
+                    />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "24px" }}>
+                      <p style={{ margin: "0 0 8px", color: C.white, fontSize: "14px", fontWeight: 700 }}>Open your camera</p>
+                      <p style={{ margin: 0, color: "rgba(243,244,244,0.78)", fontSize: "12px", lineHeight: 1.6 }}>
+                        Position your face in the frame and capture a portrait for your avatar.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {cameraError && (
+                  <p style={{
+                    margin: "0 0 12px",
+                    fontSize: "12px",
+                    color: "#B42318",
+                    background: "#FBEAE8",
+                    border: "1px solid #F3D1CC",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                  }}>
+                    {cameraError}
+                  </p>
+                )}
+
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => void startCamera()}
+                    style={{
+                      padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
+                      fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
+                      background: C.navy, color: C.white, border: "none",
+                    }}
+                  >
+                    Open Camera
+                  </button>
+                  <button
+                    onClick={() => void handleCapturePhoto()}
+                    disabled={!cameraOpen}
+                    style={{
+                      padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
+                      fontFamily: "inherit", fontWeight: 600, cursor: cameraOpen ? "pointer" : "not-allowed",
+                      background: C.teal, color: C.white, border: "none",
+                      opacity: cameraOpen ? 1 : 0.5,
+                    }}
+                  >
+                    Capture Photo
+                  </button>
+                  <button
+                    onClick={() => {
+                      stopCamera();
+                      setPortraitTab("upload");
+                    }}
+                    style={{
+                      padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
+                      fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
+                      background: C.white, color: C.navy, border: `1px solid ${C.border}`,
+                    }}
+                  >
+                    Use Upload Instead
+                  </button>
+                </div>
               </div>
             ) : (
               <div
@@ -379,7 +641,7 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
             }}>
               {/* Color swatch preview */}
               <div
-                onClick={() => colorPickerRef.current?.click()}
+                onClick={() => setScenePickerOpen(true)}
                 style={{
                   width: "34px", height: "34px", borderRadius: "8px",
                   background: bgImage ? "transparent" : bgColor,
@@ -399,7 +661,6 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
                   )
                 }
               </div>
-              <input ref={colorPickerRef} type="color" value={bgColor} onChange={(e) => { setBgColor(e.target.value); setBgImage(null); setBgImageName(null); }} style={{ display: "none" }} />
 
               <div style={{ flex: 1 }}>
                 <p style={{ margin: "0 0 1px", fontSize: "12.5px", fontWeight: 700, color: C.navy }}>
@@ -411,7 +672,7 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
               </div>
 
               <button
-                onClick={() => colorPickerRef.current?.click()}
+                onClick={() => setScenePickerOpen(true)}
                 style={{
                   padding: "8px 16px", borderRadius: "8px", fontSize: "12px",
                   fontFamily: "inherit", fontWeight: 600, cursor: "pointer",
@@ -419,98 +680,23 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
                   transition: "all 0.15s", flexShrink: 0,
                 }}
               >
-                Change
+                Choose Background
               </button>
             </div>
 
-            {/* Color preset swatches */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginRight: "2px" }}>Presets</span>
-              {BG_PRESETS.map(color => (
-                <button
-                  key={color}
-                  onClick={() => { setBgColor(color); setBgImage(null); setBgImageName(null); }}
-                  style={{
-                    width: "24px", height: "24px", borderRadius: "6px",
-                    background: color,
-                    border: bgColor === color && !bgImage ? `2px solid ${C.teal}` : `1px solid ${C.border}`,
-                    cursor: "pointer",
-                    padding: 0,
-                    boxShadow: bgColor === color && !bgImage ? `0 0 0 2px ${C.white}, 0 0 0 3.5px ${C.teal}` : "none",
-                    transition: "all 0.15s",
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* ── Upload Background + Remove Background — two equal cards ── */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>
-
-              {/* Upload Background card */}
-              <div
-                onClick={() => bgInputRef.current?.click()}
-                onDragOver={(e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setBgHover(true); }}
-                onDragLeave={() => setBgHover(false)}
-                onDrop={(e: DragEvent<HTMLDivElement>) => {
-                  e.preventDefault(); setBgHover(false);
-                  handleBgUpload(e.dataTransfer.files[0] ?? null);
-                }}
-                style={{
-                  flex: 1,
-                  border: `1.5px dashed ${bgHover ? C.teal : bgImage ? C.teal : C.border}`,
-                  borderRadius: "10px",
-                  padding: "14px 16px",
-                  display: "flex", alignItems: "center", gap: "10px",
-                  cursor: "pointer",
-                  background: bgHover ? "rgba(29,84,109,0.04)" : bgImage ? "rgba(29,84,109,0.03)" : C.bg,
-                  transition: "all 0.15s",
-                }}
-              >
-                <input
-                  ref={bgInputRef} type="file" accept="image/*" style={{ display: "none" }}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleBgUpload(e.target.files?.[0] ?? null)}
-                />
-                <div style={{
-                  width: "32px", height: "32px", borderRadius: "8px",
-                  background: bgImage ? "rgba(29,84,109,0.1)" : C.white,
-                  border: `1px solid ${bgImage ? "rgba(29,84,109,0.2)" : C.border}`,
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  transition: "all 0.15s", overflow: "hidden",
-                }}>
-                  {bgImage ? (
-                    <img src={bgImage} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="bg thumb" />
-                  ) : (
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                      <rect x="1.5" y="3" width="12" height="9" rx="1.5" stroke={C.muted} strokeWidth="1.2" />
-                      <path d="M1.5 10l3.5-3 2.5 2 2-1.5L13 11" stroke={C.muted} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-                      <circle cx="5" cy="6.5" r="1" fill={C.muted} />
-                    </svg>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: "0 0 1px", fontSize: "12px", fontWeight: 700, color: C.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {bgImage ? bgImageName : "Upload Background"}
-                  </p>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: C.muted }}>
-                    {bgImage ? "Click to replace" : "JPG · PNG · WebP"}
-                  </p>
-                </div>
-                {bgImage && (
-                  <span style={{
-                    fontSize: "10px", fontWeight: 700, color: C.teal,
-                    background: "rgba(29,84,109,0.08)", border: `1px solid rgba(29,84,109,0.15)`,
-                    borderRadius: "5px", padding: "3px 8px", flexShrink: 0,
-                  }}>
-                    ✓ Set
-                  </span>
-                )}
-              </div>
+            {/* ── Remove Background ── */}
+            <div style={{ display: "flex", gap: "10px", marginTop: "14px", flexWrap: "wrap" }}>
+              <input
+                ref={bgInputRef} type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleBgUpload(e.target.files?.[0] ?? null)}
+              />
 
               {/* Remove Background card */}
               <div
                 onClick={() => { if (portrait) handleRemoveBg(); }}
                 style={{
                   flex: 1,
+                  minWidth: "240px",
                   border: `1.5px solid ${bgRemoved ? "rgba(16,185,129,0.4)" : C.border}`,
                   borderRadius: "10px",
                   padding: "14px 16px",
@@ -551,6 +737,229 @@ export default function AvatarGenerator({ generateAvatar }: AvatarGeneratorProps
 
             </div>
           </section>
+
+          {scenePickerOpen && (
+            <div
+              onClick={() => setScenePickerOpen(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(6,30,41,0.45)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "24px",
+                zIndex: 100,
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: "min(980px, 100%)",
+                  maxHeight: "84vh",
+                  overflowY: "auto",
+                  background: "#141414",
+                  borderRadius: "0px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  boxShadow: "0 28px 80px rgba(6,30,41,0.35)",
+                }}
+              >
+                <div style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "0 24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
+                      {[
+                        { key: "scenes", label: "SCENES" },
+                        { key: "solid", label: "SOLID COLOR" },
+                        { key: "upload", label: "UPLOAD" },
+                      ].map((tab) => (
+                        <button
+                          key={tab.key}
+                          onClick={() => setScenePickerTab(tab.key as "scenes" | "solid" | "upload")}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            borderBottom: scenePickerTab === tab.key ? "2px solid #D4FF4F" : "2px solid transparent",
+                            color: scenePickerTab === tab.key ? "#F3F4F4" : "rgba(243,244,244,0.68)",
+                            padding: "18px 6px 16px",
+                            fontSize: "12px",
+                            fontWeight: 500,
+                            letterSpacing: "0.08em",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setScenePickerOpen(false)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "rgba(243,244,244,0.7)",
+                        fontSize: "22px",
+                        cursor: "pointer",
+                        padding: "8px 0",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ padding: "22px 24px 24px" }}>
+                  {scenePickerTab === "scenes" && (
+                    <>
+                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "18px" }}>
+                        {(["Professional", "Educational", "Casual", "Abstract"] as const).map((category) => (
+                          <button
+                            key={category}
+                            onClick={() => setSceneCategory(category)}
+                            style={{
+                              background: sceneCategory === category ? "rgba(212,255,79,0.12)" : "rgba(255,255,255,0.03)",
+                              border: sceneCategory === category ? "1px solid rgba(212,255,79,0.45)" : "1px solid rgba(255,255,255,0.10)",
+                              color: sceneCategory === category ? "#D4FF4F" : "rgba(243,244,244,0.68)",
+                              borderRadius: "999px",
+                              padding: "10px 16px",
+                              fontSize: "12px",
+                              letterSpacing: "0.04em",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {category.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+                        {SCENE_BACKGROUNDS.filter((scene) => scene.category === sceneCategory).map((scene) => {
+                          const isSelected = bgImageName === scene.name;
+
+                          return (
+                            <button
+                              key={scene.name}
+                              onClick={() => handleSceneSelect(scene)}
+                              style={{
+                                textAlign: "left",
+                                background: "#1A1A1A",
+                                border: isSelected ? "2px solid #D4FF4F" : "1px solid rgba(255,255,255,0.08)",
+                                borderRadius: "18px",
+                                padding: "0",
+                                cursor: "pointer",
+                                overflow: "hidden",
+                                boxShadow: isSelected ? "0 0 0 1px rgba(212,255,79,0.18)" : "none",
+                                position: "relative",
+                              }}
+                            >
+                              <img
+                                src={scene.image}
+                                alt={scene.name}
+                                style={{
+                                  width: "100%",
+                                  height: "138px",
+                                  objectFit: "cover",
+                                  display: "block",
+                                  background: "#202020",
+                                }}
+                              />
+                              {isSelected && (
+                                <div style={{
+                                  position: "absolute",
+                                  top: "10px",
+                                  right: "10px",
+                                  width: "28px",
+                                  height: "28px",
+                                  borderRadius: "50%",
+                                  background: "#D4FF4F",
+                                  color: "#061E29",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: 700,
+                                  fontSize: "15px",
+                                }}>
+                                  ✓
+                                </div>
+                              )}
+                              <div style={{ padding: "12px 14px 14px" }}>
+                                <div style={{ color: "#F3F4F4", fontSize: "14px", fontWeight: 500, marginBottom: "4px" }}>{scene.name}</div>
+                                <div style={{ color: "rgba(243,244,244,0.48)", fontSize: "12px" }}>{scene.description}</div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {scenePickerTab === "solid" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "14px" }}>
+                      {BG_PRESETS.map((color) => {
+                        const isSelected = !bgImage && bgColor === color;
+
+                        return (
+                          <button
+                            key={color}
+                            onClick={() => handleColorSelect(color)}
+                            style={{
+                              background: "#1A1A1A",
+                              border: isSelected ? "2px solid #D4FF4F" : "1px solid rgba(255,255,255,0.08)",
+                              borderRadius: "18px",
+                              padding: "12px",
+                              cursor: "pointer",
+                              textAlign: "left",
+                            }}
+                          >
+                            <div style={{
+                              height: "110px",
+                              borderRadius: "12px",
+                              background: color,
+                              border: color === "#F3F4F4" ? "1px solid rgba(255,255,255,0.14)" : "none",
+                              marginBottom: "12px",
+                            }} />
+                            <div style={{ color: "#F3F4F4", fontSize: "13px", fontWeight: 600 }}>{color}</div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {scenePickerTab === "upload" && (
+                    <div style={{
+                      border: "1px dashed rgba(255,255,255,0.18)",
+                      borderRadius: "20px",
+                      padding: "28px",
+                      background: "rgba(255,255,255,0.02)",
+                      color: "#F3F4F4",
+                    }}>
+                      <div style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>Custom uploads</div>
+                      <div style={{ fontSize: "13px", color: "rgba(243,244,244,0.58)", marginBottom: "16px", lineHeight: 1.6 }}>
+                        Use the existing Upload Background button in the background step to add your own photo. You can replace the scene thumbnails in this popup later with your final images.
+                      </div>
+                      <button
+                        onClick={() => {
+                          setScenePickerOpen(false)
+                          bgInputRef.current?.click()
+                        }}
+                        style={{
+                          background: "#D4FF4F",
+                          color: "#061E29",
+                          border: "none",
+                          borderRadius: "999px",
+                          padding: "10px 16px",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Use Upload Background
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ height: "1px", background: C.divider, marginBottom: "48px" }} />
 

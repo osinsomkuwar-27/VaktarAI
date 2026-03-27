@@ -9,6 +9,7 @@
     "strict": true,
     "noEmit": true,
     "baseUrl": ".",
+    "types": ["vite/client"],
     "paths": {
       "@workspace/ui/*": ["./src/*"]
     }
