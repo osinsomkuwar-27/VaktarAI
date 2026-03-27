@@ -89,7 +89,7 @@ export default function SignUp() {
         {/* Left Panel */}
         <div style={styles.leftPanel}>
           <div style={styles.logo}>
-            <img src="/logo final.png" alt="VaktarAI" style={styles.logoImage} />
+            <img src="/28.png" alt="VaktarAI" style={styles.logoImage} />
           </div>
 
           <div style={styles.tagline}>
@@ -285,6 +285,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', sans-serif",
     position: "relative",
     overflow: "hidden",
+    padding: "108px 24px 32px",
   },
   grid: {
     position: "absolute",
@@ -319,7 +320,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 40,
   },
   logoImage: {
-    height: 44,
+    height: 72,
     width: "auto",
     display: "block",
     objectFit: "contain",

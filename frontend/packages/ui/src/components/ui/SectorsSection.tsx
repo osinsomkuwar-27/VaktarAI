@@ -8,6 +8,7 @@ interface BentoCardProps {
   subtitle?: string
   colors: string[]
   delay: number
+  imageSrc?: string
 }
 
 const BentoCard: React.FC<BentoCardProps> = ({
@@ -16,6 +17,7 @@ const BentoCard: React.FC<BentoCardProps> = ({
   subtitle,
   colors,
   delay,
+  imageSrc,
 }) => {
   const container = {
     hidden: { opacity: 0 },
@@ -40,7 +42,18 @@ const BentoCard: React.FC<BentoCardProps> = ({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay }}
     >
-      <AnimatedGradient colors={colors} speed={0.05} blur="medium" />
+      {imageSrc && (
+        <>
+          <img
+            src={imageSrc}
+            alt={title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-[#061E29]/45" />
+        </>
+      )}
+      {!imageSrc && <AnimatedGradient colors={colors} speed={0.05} blur="medium" />}
+      {!imageSrc && <div className="absolute inset-0 bg-[#061E29]/35" />}
       <motion.div
         className="relative z-10 p-3 sm:p-5 md:p-8 text-foreground backdrop-blur-sm"
         variants={container}
@@ -99,6 +112,7 @@ const SectorsSection: React.FC = () => {
                 subtitle="Teachers create AI-powered video lessons from a single photo — no studio, no camera, no crew needed."
                 colors={["#1D546D", "#5F9598", "#234C6A"]}
                 delay={0.2}
+                imageSrc="/sectors/education.avif"
               />
             </div>
 
@@ -110,6 +124,7 @@ const SectorsSection: React.FC = () => {
                 subtitle="Launch personalised ad campaigns with AI avatars speaking directly to your audience."
                 colors={["#5F9598", "#1D546D", "#1B3C53"]}
                 delay={0.4}
+                imageSrc="/sectors/marketing.avif"
               />
             </div>
 
@@ -132,6 +147,7 @@ const SectorsSection: React.FC = () => {
                 subtitle="Replace costly in-person sessions with scalable AI presenter videos your teams can watch anytime."
                 colors={["#1D546D", "#234C6A", "#5F9598"]}
                 delay={0.8}
+                imageSrc="/sectors/corporate-training.jpg"
               />
             </div>
 
@@ -143,6 +159,7 @@ const SectorsSection: React.FC = () => {
                 subtitle="Deploy AI avatar agents that explain products, handle FAQs, and guide users — in any language, at any hour."
                 colors={["#5F9598", "#234C6A", "#1D546D"]}
                 delay={1.0}
+                imageSrc="/sectors/customer-support.avif"
               />
             </div>
 
@@ -154,6 +171,7 @@ const SectorsSection: React.FC = () => {
                 subtitle="Clinicians deliver consistent patient education videos without repeating themselves in every appointment."
                 colors={["#1B3C53", "#5F9598", "#234C6A"]}
                 delay={1.2}
+                imageSrc="/sectors/healthcare.jpeg"
               />
             </div>
 

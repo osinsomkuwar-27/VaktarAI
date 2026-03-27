@@ -13,7 +13,7 @@ export default function TeamSection() {
       <style>{`
         .team {
           min-height: 100vh;
-          background: #F3F4F4;
+          background: #5F9598;
           padding: 96px 60px;
           display: flex;
           flex-direction: column;
@@ -36,7 +36,7 @@ export default function TeamSection() {
           letter-spacing: 0.16em;
           font-size: 12px;
           font-weight: 700;
-          color: #5F9598;
+          color: #061E29;
         }
 
         .team-heading {
@@ -151,7 +151,7 @@ export default function TeamSection() {
 
       <section id="people" className="team">
         <div className="team-copy">
-          <p className="team-kicker">People Behind VaktarAI</p>
+          <p className="team-kicker">People Behind Vaktar AI</p>
           <h2 className="team-heading">Meet the Team</h2>
         </div>
 

@@ -74,10 +74,10 @@ const CSS = `
     padding: calc(var(--nav-h) + 48px) 24px 40px;
   }
   .vg-hero-logo {
-    width: 150px;
+    width: 240px;
     height: auto;
     display: block;
-    margin-bottom: 18px;
+    margin-bottom: 22px;
     object-fit: contain;
   }
   .vg-hero-tag {
@@ -287,7 +287,7 @@ const CSS = `
     align-items: center;
   }
   .vg-footer-brand img {
-    height: 30px;
+    height: 52px;
     width: auto;
     object-fit: contain;
     display: block;
@@ -378,7 +378,7 @@ export default function VaktarGallery() {
 
       {/* Hero */}
       <section className="vg-hero">
-        <img className="vg-hero-logo" src="/logo final.png" alt="VaktarAI" />
+        <img className="vg-hero-logo" src="/28.png" alt="VaktarAI" />
         <div className="vg-hero-tag">✦ Visual Gallery</div>
         <h1 className="vg-hero-title">
           Moments <span>Captured</span>
@@ -424,7 +424,7 @@ export default function VaktarGallery() {
       {/* Footer */}
       <footer className="vg-footer">
         <div className="vg-footer-brand">
-          <img src="/logo final.png" alt="VaktarAI" />
+          <img src="/28.png" alt="VaktarAI" />
         </div>
         <div className="vg-footer-links">
           {["Privacy", "Terms", "Docs", "Contact"].map((l) => (

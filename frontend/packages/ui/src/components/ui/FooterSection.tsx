@@ -6,34 +6,30 @@ const platformLinks = [
   "Document Summaries",
 ]
 
-const companyLinks = [
-  "About",
-  "Guide",
-  "Sectors",
-  "People",
-]
+const companyLinks = ["About", "Guide", "Sectors", "People"]
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-[#061E29] px-4 pb-10 pt-20 text-[#F3F4F4] md:px-6">
+    <footer className="bg-[#061E29] px-4 pt-20 pb-10 text-[#F3F4F4] md:px-6">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-12 border-b border-[#1D546D]/35 pb-12 lg:grid-cols-[1.25fr_0.8fr_0.8fr_1.1fr]">
           <div className="max-w-sm">
             <div className="mb-6 flex items-center gap-3">
               <img
-                src="/logo final.png"
+                src="/30.png"
                 alt="VaktarAI"
-                className="h-12 w-auto object-contain"
+                className="h-20 w-auto object-contain"
               />
             </div>
 
             <p className="text-sm leading-7 text-[#5F9598]">
-              Create AI avatar videos, voice-led explainers, and interactive experiences from one streamlined workspace.
+              Create AI avatar videos, voice-led explainers, and interactive
+              experiences from one streamlined workspace.
             </p>
           </div>
 
           <div>
-            <h4 className="mb-5 text-sm font-semibold uppercase tracking-[0.16em] text-[#F3F4F4]">
+            <h4 className="mb-5 text-sm font-semibold tracking-[0.16em] text-[#F3F4F4] uppercase">
               Platform
             </h4>
             <ul className="space-y-3 text-sm text-[#5F9598]">
@@ -44,7 +40,7 @@ const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="mb-5 text-sm font-semibold uppercase tracking-[0.16em] text-[#F3F4F4]">
+            <h4 className="mb-5 text-sm font-semibold tracking-[0.16em] text-[#F3F4F4] uppercase">
               Company
             </h4>
             <ul className="space-y-3 text-sm text-[#5F9598]">
@@ -55,13 +51,14 @@ const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="mb-5 text-sm font-semibold uppercase tracking-[0.16em] text-[#F3F4F4]">
+            <h4 className="mb-5 text-sm font-semibold tracking-[0.16em] text-[#F3F4F4] uppercase">
               Contact
             </h4>
 
             <div className="space-y-3 text-sm leading-7 text-[#5F9598]">
               <p>
-                <span className="text-[#F3F4F4]">Email:</span> xxxxxabcxx@gmail.com
+                <span className="text-[#F3F4F4]">Email:</span>{" "}
+                xxxxxabcxx@gmail.com
               </p>
               <p>
                 <span className="text-[#F3F4F4]">Phone:</span> +91 98XXX XXXXX
@@ -75,7 +72,10 @@ const Footer: React.FC = () => {
 
         <div className="flex flex-col gap-3 pt-6 text-sm text-[#5F9598] md:flex-row md:items-center md:justify-between">
           <p>© {new Date().getFullYear()} VaktarAI. All rights reserved.</p>
-          <p>Built for avatar video creation, multilingual voice, and interactive AI experiences.</p>
+          <p>
+            Built for avatar video creation, multilingual voice, and interactive
+            AI experiences.
+          </p>
         </div>
       </div>
     </footer>
