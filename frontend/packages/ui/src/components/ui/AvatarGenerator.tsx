@@ -192,6 +192,80 @@ function Chevron() {
   )
 }
 
+function CameraSilhouetteGuide() {
+  const silhouettePath =
+    "M150 44c-31 0-54 24.4-54 54.5 0 20 10.6 37.5 27.3 46.8 2.2 1.2 3.6 3.5 3.6 6v22.8h-8.7c-52 0-94.2 42.2-94.2 94.2v23.8h252v-23.8c0-52-42.2-94.2-94.2-94.2h-8.7v-22.8c0-2.5 1.4-4.8 3.6-6 16.7-9.3 27.3-26.8 27.3-46.8C204 68.4 181 44 150 44Z"
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2,
+      }}
+    >
+      <svg
+        viewBox="0 0 300 330"
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          overflow: "visible",
+        }}
+      >
+        <path
+          d={`M0 0H300V330H0Z ${silhouettePath}`}
+          fill="rgba(6,30,41,0.24)"
+          fillRule="evenodd"
+        />
+        <path
+          d={silhouettePath}
+          fill="rgba(255,255,255,0.04)"
+          stroke="rgba(255,255,255,0.9)"
+          strokeWidth="4.5"
+          strokeDasharray="10 8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M58 292v-14c0-30.8 25-55.8 55.8-55.8h72.4c30.8 0 55.8 25 55.8 55.8v14"
+          fill="none"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="2.5"
+          strokeDasharray="6 8"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 14,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 1,
+          padding: "7px 12px",
+          borderRadius: "999px",
+          background: "rgba(6,30,41,0.6)",
+          color: "rgba(255,255,255,0.88)",
+          fontSize: "10.5px",
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+          whiteSpace: "nowrap",
+          backdropFilter: "blur(4px)",
+        }}
+      >
+        Align head to waist inside the outline
+      </div>
+    </div>
+  )
+}
+
 const stepHeading: React.CSSProperties = {
   margin: 0,
   fontSize: "15px",
@@ -994,19 +1068,22 @@ export default function AvatarGenerator({
                   }}
                 >
                   {cameraOpen ? (
-                    <video
-                      ref={cameraVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      style={{
-                        width: "100%",
-                        height: "260px",
-                        objectFit: "cover",
-                        display: "block",
-                        transform: "scaleX(-1)",
-                      }}
-                    />
+                    <>
+                      <video
+                        ref={cameraVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{
+                          width: "100%",
+                          height: "260px",
+                          objectFit: "cover",
+                          display: "block",
+                          transform: "scaleX(-1)",
+                        }}
+                      />
+                      <CameraSilhouetteGuide />
+                    </>
                   ) : (
                     <div style={{ textAlign: "center", padding: "24px" }}>
                       <p

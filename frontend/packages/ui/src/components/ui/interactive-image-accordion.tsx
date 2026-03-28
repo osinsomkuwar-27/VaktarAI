@@ -39,16 +39,6 @@ const AccordionItem = ({ item, isActive, onMouseEnter }: AccordionItemProps) => 
         }}
       />
       <div className="absolute inset-0 bg-black/30" />
-      <span
-        className={`absolute text-lg font-semibold whitespace-nowrap transition-all duration-300 ease-in-out ${
-          isActive
-            ? "bottom-6 left-1/2 -translate-x-1/2 rotate-0"
-            : "bottom-24 left-1/2 -translate-x-1/2 rotate-90"
-        }`}
-        style={{ color: "#F3F4F4" }}
-      >
-        {item.title}
-      </span>
     </div>
   )
 }
