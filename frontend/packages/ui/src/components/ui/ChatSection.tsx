@@ -461,20 +461,6 @@ export default function VaktarChat({ askAvatar }: VaktarChatProps) {
       time: 'Just now',
       isError: false,
     },
-    {
-      id: 2,
-      role: 'user',
-      text: 'what is square of 9',
-      time: '06:45 pm',
-      isError: false,
-    },
-    {
-      id: 3,
-      role: 'avatar',
-      text: '⚠ Failed to fetch — please upload a photo to enable avatar responses.',
-      time: '06:45 pm',
-      isError: true,
-    },
   ]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
