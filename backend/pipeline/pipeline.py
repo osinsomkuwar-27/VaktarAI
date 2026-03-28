@@ -30,7 +30,7 @@ import uuid
 import sys
 from dotenv import load_dotenv
 
-load_dotenv("/workspaces/VaktarAI/.env")
+load_dotenv()
 
 # Add parent directory to path so document_processor can be imported
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))

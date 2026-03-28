@@ -257,10 +257,18 @@ export default function AvatarGenerator({
   const [inputMode, setInputMode] = useState<"type" | "document">("type")
   const [message, setMessage] = useState("")
   const [msgFocus, setMsgFocus] = useState(false)
-  const [docFile, setDocFile] = useState<string | null>(null)
+  const [docFile, setDocFile] = useState<File | null>(null)
   const [docHover, setDocHover] = useState(false)
   const [summarized, setSummarized] = useState(false)
   const [summarizing, setSummarizing] = useState(false)
+  const [docError, setDocError] = useState<string | null>(null)
+  const [docResult, setDocResult] = useState<{
+    key_points: string[]
+    spoken_text: string
+    key_topic: string
+    suggested_tone: string
+    word_count: number
+  } | null>(null)
   const docInputRef = useRef<HTMLInputElement>(null)
 
   const [speaker, setSpeaker] = useState<(typeof SPEAKERS)[number]>("shreeja")
@@ -328,20 +336,53 @@ export default function AvatarGenerator({
   }
   const handleDoc = (file: File | null) => {
     if (file) {
-      setDocFile(file.name)
+      setDocFile(file)
       setSummarized(false)
+      setDocResult(null)
+      setDocError(null)
+      setMessage("")
     }
   }
   const handleSummarize = () => {
     if (!docFile) return
     setSummarizing(true)
-    setTimeout(() => {
-      setSummarizing(false)
-      setSummarized(true)
-      setMessage(
-        "This document outlines the key milestones and deliverables for the upcoming product launch. The team is expected to finalize designs by end of Q2 and begin beta testing in Q3."
-      )
-    }, 1800)
+    setSummarized(false)
+    setDocResult(null)
+    setDocError(null)
+
+    const formData = new FormData()
+    formData.append("file", docFile)
+
+    fetch("http://localhost:8000/document-to-text", {
+      method: "POST",
+      body: formData,
+    })
+      .then(async (r) => {
+        const raw = await r.text()
+        if (!raw || raw.trim() === "") {
+          throw new Error(`Empty response from server (HTTP ${r.status}). Check server logs.`)
+        }
+        let parsed: { key_points: string[]; spoken_text: string; key_topic: string; suggested_tone: string; word_count: number; detail?: string }
+        try {
+          parsed = JSON.parse(raw)
+        } catch {
+          throw new Error(`Server returned non-JSON: ${raw.slice(0, 200)}`)
+        }
+        if (!r.ok) {
+          throw new Error(parsed?.detail ?? `Server error (HTTP ${r.status})`)
+        }
+        return parsed
+      })
+      .then((data) => {
+        setDocResult(data)
+        setMessage(data.spoken_text ?? "")
+        setSummarized(true)
+        setSummarizing(false)
+      })
+      .catch((err: Error) => {
+        setSummarizing(false)
+        setDocError(err.message ?? "Failed to process document.")
+      })
   }
   const handleBgUpload = (file: File | null) => {
     if (file) {
@@ -1777,18 +1818,18 @@ export default function AvatarGenerator({
                         color: C.navy,
                       }}
                     >
-                      {docFile ?? "Upload a document"}
+                      {docFile ? docFile.name : "Upload a document"}
                     </p>
                     <p style={{ margin: 0, fontSize: "11px", color: C.muted }}>
                       PDF · DOCX · TXT
                     </p>
                   </div>
-                  {docFile && (
+                </div>
+
+                {docFile && (
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleSummarize()
-                      }}
+                      onClick={() => handleSummarize()}
                       disabled={summarizing}
                       style={{
                         background: C.teal,
@@ -1799,7 +1840,8 @@ export default function AvatarGenerator({
                         fontSize: "11px",
                         fontWeight: 600,
                         fontFamily: "inherit",
-                        cursor: "pointer",
+                        cursor: summarizing ? "not-allowed" : "pointer",
+                        opacity: summarizing ? 0.7 : 1,
                         flexShrink: 0,
                       }}
                     >
@@ -1809,30 +1851,45 @@ export default function AvatarGenerator({
                           ? "Re-summarize"
                           : "Summarize"}
                     </button>
-                  )}
-                </div>
-                {summarized && (
-                  <p
-                    style={{
-                      fontSize: "11px",
-                      color: "#059669",
-                      margin: "0 0 10px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "5px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "5px",
-                        height: "5px",
-                        background: "#10b981",
-                        borderRadius: "50%",
-                        display: "inline-block",
-                      }}
-                    />
-                    Summary extracted — message updated below
+                  </div>
+                )}
+                {docError && (
+                  <p style={{ fontSize: "11px", color: "#ef4444", margin: "0 0 10px", display: "flex", alignItems: "center", gap: "5px" }}>
+                    <span style={{ width: "5px", height: "5px", background: "#ef4444", borderRadius: "50%", display: "inline-block" }} />
+                    {docError}
                   </p>
+                )}
+                {summarized && docResult && (
+                  <div style={{ marginBottom: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                      <p style={{ fontSize: "11px", color: "#059669", margin: 0, display: "flex", alignItems: "center", gap: "5px" }}>
+                        <span style={{ width: "5px", height: "5px", background: "#10b981", borderRadius: "50%", display: "inline-block" }} />
+                        Summary extracted — spoken text updated below
+                      </p>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <span style={{ fontSize: "10px", color: C.muted, background: C.bg, border: `1px solid ${C.border}`, borderRadius: "5px", padding: "2px 8px" }}>
+                          {docResult.word_count.toLocaleString()} words
+                        </span>
+                        <span style={{ fontSize: "10px", fontWeight: 600, color: C.teal, background: "rgba(29,84,109,0.07)", border: `1px solid rgba(29,84,109,0.15)`, borderRadius: "5px", padding: "2px 8px", textTransform: "capitalize" }}>
+                          {docResult.suggested_tone}
+                        </span>
+                      </div>
+                    </div>
+                    <p style={{ margin: "0 0 8px", fontSize: "11.5px", fontWeight: 700, color: C.navy }}>
+                      📌 {docResult.key_topic}
+                    </p>
+                    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px 14px" }}>
+                      <p style={{ margin: "0 0 8px", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted }}>6 Key Points</p>
+                      {docResult.key_points.map((pt, i) => (
+                        <div key={i} style={{ display: "flex", gap: "8px", marginBottom: i < docResult.key_points.length - 1 ? "6px" : 0 }}>
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: C.white, background: C.teal, borderRadius: "50%", width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>
+                            {i + 1}
+                          </span>
+                          <p style={{ margin: 0, fontSize: "11.5px", color: C.navy, lineHeight: 1.5 }}>{pt}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
