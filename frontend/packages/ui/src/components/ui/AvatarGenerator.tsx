@@ -295,6 +295,7 @@ export default function AvatarGenerator({
   const [progress, setProgress] = useState(0)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [genError, setGenError] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
 
   const stopCamera = () => {
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
@@ -303,6 +304,64 @@ export default function AvatarGenerator({
       cameraVideoRef.current.srcObject = null
     }
     setCameraOpen(false)
+  }
+
+  const handleShare = async () => {
+    if (!videoUrl || typeof window === "undefined") return
+
+    const absoluteVideoUrl = new URL(videoUrl, window.location.href).toString()
+
+    try {
+      setShareMessage(null)
+
+      if (navigator.share) {
+        try {
+          const response = await fetch(absoluteVideoUrl)
+          const blob = await response.blob()
+          const extension =
+            blob.type === "video/webm"
+              ? "webm"
+              : blob.type === "video/quicktime"
+                ? "mov"
+                : "mp4"
+          const file = new File([blob], `avatar-video.${extension}`, {
+            type: blob.type || "video/mp4",
+          })
+
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({
+              title: "VaktarAI Avatar Video",
+              text: "Check out this avatar video I created.",
+              files: [file],
+            })
+            return
+          }
+        } catch {
+          // Fall back to sharing or copying the URL if file sharing is unavailable.
+        }
+
+        await navigator.share({
+          title: "VaktarAI Avatar Video",
+          text: "Check out this avatar video I created.",
+          url: absoluteVideoUrl,
+        })
+        return
+      }
+
+      await navigator.clipboard.writeText(absoluteVideoUrl)
+      setShareMessage("Video link copied to clipboard.")
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return
+      }
+
+      try {
+        await navigator.clipboard.writeText(absoluteVideoUrl)
+        setShareMessage("Share sheet unavailable. Video link copied instead.")
+      } catch {
+        setShareMessage("Unable to share this video on this browser.")
+      }
+    }
   }
 
   const startCamera = async () => {
@@ -2206,7 +2265,8 @@ export default function AvatarGenerator({
                     style={{
                       position: "absolute", inset: 0,
                       width: "100%", height: "100%",
-                      objectFit: "cover",
+                      objectFit: "contain",
+                      background: "#000",
                       borderRadius: "16px",
                     }}
                   />
@@ -2240,39 +2300,61 @@ export default function AvatarGenerator({
 
             {/* Action buttons */}
             <div style={{ display: "flex", gap: "8px", marginTop: "22px" }}>
-              {(
-                [
-                  { label: "Download", href: videoUrl ?? undefined },
-                  { label: "Share", href: undefined },
-                ] as { label: string; href?: string }[]
-              ).map(({ label, href }) => (
-                <a
-                  key={label}
-                  href={href}
-                  download={
-                    label === "Download" ? "avatar-video.mp4" : undefined
-                  }
-                  style={{
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "8px",
-                    padding: "9px 24px",
-                    color: videoUrl
-                      ? "rgba(255,255,255,0.7)"
-                      : "rgba(255,255,255,0.25)",
-                    fontSize: "12px",
-                    fontFamily: "inherit",
-                    fontWeight: 500,
-                    cursor: videoUrl ? "pointer" : "not-allowed",
-                    textDecoration: "none",
-                    transition: "all 0.15s",
-                    pointerEvents: videoUrl ? "auto" : "none",
-                  }}
-                >
-                  {label}
-                </a>
-              ))}
+              <a
+                href={videoUrl ?? undefined}
+                download="avatar-video.mp4"
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  padding: "9px 24px",
+                  color: videoUrl
+                    ? "rgba(255,255,255,0.7)"
+                    : "rgba(255,255,255,0.25)",
+                  fontSize: "12px",
+                  fontFamily: "inherit",
+                  fontWeight: 500,
+                  cursor: videoUrl ? "pointer" : "not-allowed",
+                  textDecoration: "none",
+                  transition: "all 0.15s",
+                  pointerEvents: videoUrl ? "auto" : "none",
+                }}
+              >
+                Download
+              </a>
+              <button
+                type="button"
+                onClick={handleShare}
+                disabled={!videoUrl}
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  padding: "9px 24px",
+                  color: videoUrl
+                    ? "rgba(255,255,255,0.7)"
+                    : "rgba(255,255,255,0.25)",
+                  fontSize: "12px",
+                  fontFamily: "inherit",
+                  fontWeight: 500,
+                  cursor: videoUrl ? "pointer" : "not-allowed",
+                  transition: "all 0.15s",
+                }}
+              >
+                Share
+              </button>
             </div>
+            {shareMessage && (
+              <p
+                style={{
+                  margin: "10px 0 0",
+                  fontSize: "11.5px",
+                  color: "rgba(255,255,255,0.62)",
+                }}
+              >
+                {shareMessage}
+              </p>
+            )}
           </div>
 
           {/* Speaker info strip */}
