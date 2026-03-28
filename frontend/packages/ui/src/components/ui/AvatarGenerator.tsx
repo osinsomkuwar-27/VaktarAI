@@ -296,6 +296,8 @@ export default function AvatarGenerator({
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [genError, setGenError] = useState<string | null>(null)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [generationStage, setGenerationStage] = useState("Preparing your avatar")
+  const generationIntervalRef = useRef<number | null>(null)
 
   const stopCamera = () => {
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
@@ -305,6 +307,49 @@ export default function AvatarGenerator({
     }
     setCameraOpen(false)
   }
+
+  useEffect(() => {
+    if (!generating) {
+      if (generationIntervalRef.current !== null) {
+        window.clearInterval(generationIntervalRef.current)
+        generationIntervalRef.current = null
+      }
+      return
+    }
+
+    generationIntervalRef.current = window.setInterval(() => {
+      setProgress((current) => {
+        const next =
+          current < 0.18 ? current :
+          current < 0.35 ? current + 0.02 :
+          current < 0.6 ? current + 0.012 :
+          current < 0.82 ? current + 0.008 :
+          current < 0.94 ? current + 0.004 :
+          current
+
+        const clamped = Math.min(next, 0.94)
+
+        if (clamped < 0.2) {
+          setGenerationStage("Uploading assets")
+        } else if (clamped < 0.45) {
+          setGenerationStage("Synthesizing voice")
+        } else if (clamped < 0.78) {
+          setGenerationStage("Animating avatar")
+        } else {
+          setGenerationStage("Finalizing video")
+        }
+
+        return clamped
+      })
+    }, 700)
+
+    return () => {
+      if (generationIntervalRef.current !== null) {
+        window.clearInterval(generationIntervalRef.current)
+        generationIntervalRef.current = null
+      }
+    }
+  }, [generating])
 
   const handleShare = async () => {
     if (!videoUrl || typeof window === "undefined") return
@@ -605,6 +650,7 @@ export default function AvatarGenerator({
     setGenError(null)
     setVideoUrl(null)
     setProgress(0)
+    setGenerationStage("Preparing your avatar")
 
     const langCode: Record<string, string> = {
       English: "en",
@@ -625,13 +671,17 @@ export default function AvatarGenerator({
       const result = await generateAvatar(
         composedFile,
         message,
-        (pct) => setProgress(pct),
+        (pct) => {
+          setProgress((current) => Math.max(current, Math.min(pct * 0.18, 0.18)))
+          setGenerationStage("Uploading assets")
+        },
         langCode[language] ?? "en",
         speaker.toLowerCase()
       )
       setVideoUrl(result.video_url)
       setGenerated(true)
       setProgress(1)
+      setGenerationStage("Avatar ready")
     } catch (err) {
       setGenError(err instanceof Error ? err.message : "Generation failed")
     } finally {
@@ -2272,6 +2322,66 @@ export default function AvatarGenerator({
                   />
                 )}
 
+                {generating && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(6,30,41,0.52)",
+                      backdropFilter: "blur(6px)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "14px",
+                      zIndex: 3,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "54px",
+                        height: "54px",
+                        borderRadius: "50%",
+                        border: "3px solid rgba(255,255,255,0.16)",
+                        borderTopColor: C.white,
+                        animation: "vaktarSpin 0.9s linear infinite",
+                      }}
+                    />
+                    <div style={{ textAlign: "center", padding: "0 20px" }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          color: C.white,
+                          letterSpacing: "0.01em",
+                        }}
+                      >
+                        {generationStage}
+                      </p>
+                      <p
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: "28px",
+                          fontWeight: 700,
+                          color: C.white,
+                        }}
+                      >
+                        {Math.round(progress * 100)}%
+                      </p>
+                      <p
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.72)",
+                        }}
+                      >
+                        This usually takes 2-3 minutes.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Progress bar while generating */}
                 {generating && (
                   <div
@@ -2436,6 +2546,12 @@ export default function AvatarGenerator({
           </div>
         </div>
       </div>
+      <style>{`
+        @keyframes vaktarSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }
