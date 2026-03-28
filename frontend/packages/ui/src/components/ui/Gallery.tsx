@@ -38,8 +38,6 @@ const VIDEOS: VideoItem[] = [
 
 // ── Scoped CSS ─────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap');
-
   .vg-root {
     --navy:     #223448;
     --steel:    #547892;
@@ -57,7 +55,7 @@ const CSS = `
 
     background: var(--bg);
     color: var(--text);
-    font-family: 'Taviraj', serif;
+    font-family: inherit;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -89,7 +87,7 @@ const CSS = `
     text-transform: uppercase; color: var(--accent); margin-bottom: 20px;
   }
   .vg-hero-title {
-    font-family: 'Taviraj', serif; font-weight: 600;
+    font-family: inherit; font-weight: 600;
     font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.1;
     letter-spacing: -0.02em; margin-bottom: 14px; color: var(--navy);
   }
@@ -159,7 +157,7 @@ const CSS = `
   }
 
   .vg-caption h3 {
-    font-family: 'Taviraj', serif; font-weight: 600;
+    font-family: inherit; font-weight: 600;
     font-size: 1.1rem; color: var(--beige); margin-bottom: 4px;
   }
   .vg-caption p {
@@ -230,7 +228,7 @@ const CSS = `
   }
 
   .vg-modal-title {
-    font-family: 'Taviraj', serif;
+    font-family: inherit;
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--navy);

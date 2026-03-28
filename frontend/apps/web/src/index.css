@@ -3,6 +3,12 @@
 @theme {
   --font-sans: 'Raleway', sans-serif;
 }
+html,
+body,
+#root {
+  font-family: 'Raleway', sans-serif;
+}
+
 html {
   scroll-behavior: smooth;
 }

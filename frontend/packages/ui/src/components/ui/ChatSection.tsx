@@ -32,8 +32,6 @@ const LANGUAGE_CODES: Record<string, string> = {
 };
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap');
-
   .vaktar-chat {
     --bg: #F3F4F4;
     --surface: #ffffff;
@@ -78,7 +76,7 @@ const CSS = `
     display: flex;
     height: 100vh;
     padding-top: var(--nav-h);
-    font-family: 'Taviraj', serif;
+    font-family: inherit;
     color: var(--text);
     background: var(--bg);
   }
@@ -178,7 +176,7 @@ const CSS = `
     border: 1px solid var(--border);
     border-radius: 10px;
     color: var(--text);
-    font-family: 'Taviraj', serif;
+    font-family: inherit;
     font-size: 0.85rem;
     appearance: none;
     cursor: pointer;
@@ -214,7 +212,7 @@ const CSS = `
     color: var(--muted);
     cursor: pointer;
     transition: border-color 0.2s, color 0.2s, background 0.2s;
-    font-family: 'Taviraj', serif;
+    font-family: inherit;
     font-weight: 400;
     line-height: 1.4;
   }
@@ -271,7 +269,7 @@ const CSS = `
     cursor: pointer;
     transition: border-color 0.2s, color 0.2s, background 0.2s;
     text-align: left;
-    font-family: 'Taviraj', serif;
+    font-family: inherit;
   }
 
   .vaktar-chat .clear-btn:hover { border-color: #F3F4F4; color: #F3F4F4; background: rgba(243, 244, 244, 0.08); }
@@ -393,7 +391,7 @@ const CSS = `
     border: none;
     outline: none;
     color: var(--text);
-    font-family: 'Taviraj', serif;
+    font-family: inherit;
     font-size: 0.9rem;
     resize: none;
     line-height: 1.5;
