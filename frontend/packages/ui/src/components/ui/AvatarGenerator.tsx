@@ -120,6 +120,13 @@ const SCENE_BACKGROUNDS = [
   },
 ] as const
 
+const AVATAR_OPTIONS = [
+  { name: "Avatar 1", image: "/avatar_option/Avatar1.jpeg" },
+  { name: "Avatar 2", image: "/avatar_option/Avatar2.jpeg" },
+  { name: "Avatar 3", image: "/avatar_option/Avatar3.jpeg" },
+  { name: "Avatar 4", image: "/avatar_option/Avatar4.jpeg" },
+] as const
+
 function Label({
   children,
   style = {},
@@ -510,6 +517,25 @@ export default function AvatarGenerator({
       setPortrait(URL.createObjectURL(file))
       setPortraitFile(file)
       setBgRemoved(false)
+    }
+  }
+
+  const handlePresetPortrait = async (imagePath: string, name: string) => {
+    try {
+      const response = await fetch(imagePath)
+      const blob = await response.blob()
+      const extension = imagePath.split(".").pop() || "jpeg"
+      const file = new File(
+        [blob],
+        `${name.toLowerCase().replace(/\s+/g, "-")}.${extension}`,
+        { type: blob.type || "image/jpeg" }
+      )
+      stopCamera()
+      setCameraError(null)
+      setPortraitTab("upload")
+      handlePortrait(file)
+    } catch {
+      setCameraError("Could not load the selected avatar option. Please try another one.")
     }
   }
   const handleDoc = (file: File | null) => {
@@ -1277,6 +1303,60 @@ export default function AvatarGenerator({
                 </span>
               </div>
             )}
+
+            <div
+              style={{
+                marginTop: "16px",
+                borderTop: `1px solid ${C.divider}`,
+                paddingTop: "16px",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: C.navy,
+                }}
+              >
+                Or choose one of these
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: "10px",
+                }}
+              >
+                {AVATAR_OPTIONS.map((option) => (
+                  <button
+                    key={option.image}
+                    type="button"
+                    onClick={() => void handlePresetPortrait(option.image, option.name)}
+                    style={{
+                      border: `1px solid ${C.border}`,
+                      borderRadius: "12px",
+                      padding: "6px",
+                      background: C.white,
+                      cursor: "pointer",
+                      transition: "transform 0.15s, border-color 0.15s",
+                    }}
+                  >
+                    <img
+                      src={option.image}
+                      alt={option.name}
+                      style={{
+                        width: "100%",
+                        aspectRatio: "3 / 4",
+                        objectFit: "cover",
+                        borderRadius: "8px",
+                        display: "block",
+                      }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
           </section>
 
           <div
