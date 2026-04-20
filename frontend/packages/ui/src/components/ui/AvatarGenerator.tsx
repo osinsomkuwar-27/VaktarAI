@@ -753,15 +753,17 @@ export default function AvatarGenerator({
     setGenerationStage("Preparing your avatar")
 
     const langCode: Record<string, string> = {
-      English: "en",
-      Hindi: "hi",
-      Spanish: "es",
-      French: "fr",
-      German: "de",
-      Japanese: "ja",
-      Mandarin: "zh",
-      Arabic: "ar",
-      Portuguese: "pt",
+      English:   "en",
+      Hindi:     "hi",
+      Marathi:   "mr",
+      Bengali:   "bn",
+      Tamil:     "ta",
+      Telugu:    "te",
+      Gujarati:  "gu",
+      Kannada:   "kn",
+      Malayalam: "ml",
+      Punjabi:   "pa",
+      Urdu:      "ur",
     }
 
     try {
