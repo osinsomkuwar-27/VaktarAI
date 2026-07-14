@@ -18,6 +18,7 @@ httpx==0.25.2
 
 # ── Utils ──
 python-dotenv==1.0.0
+cryptography==42.0.5
 
 # ── SadTalker Dependencies ──
 # (installed separately via avatar_video/setup.py)

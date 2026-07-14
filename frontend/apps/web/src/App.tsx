@@ -6,6 +6,7 @@ import AvatarPage from "./AvatarPage"
 import ChatSection from "@workspace/ui/components/ui/ChatSection"
 import Gallery from "@workspace/ui/components/ui/Gallery"
 import SignUp from "@workspace/ui/components/ui/SignUp" 
+import VerifyPage from "./VerifyPage"
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/chat" element={<ChatSection askAvatar={askAvatar} />} />
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/login" element={<SignUp />} />
+        <Route path="/verify" element={<VerifyPage />} />
       </Routes>
     </Router>
   )
