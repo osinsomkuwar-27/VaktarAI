@@ -82,3 +82,23 @@ def verify_hash_signature(public_key, data_hash: str, signature_hex: str) -> boo
         return True
     except Exception:
         return False
+
+
+def sign_video_file(video_path: str) -> tuple[str, str]:
+    """Computes SHA-256 hash of a video file and signs it with the private key.
+    Returns (video_hash, signature_hex) as specified in sequence diagram.
+    """
+    video_hash = compute_sha256(video_path)
+    km = KeyManager()
+    private_key = km.load_private_key()
+    signature_hex = sign_hash(private_key, video_hash)
+    return video_hash, signature_hex
+
+
+def generate_secure_token(video_filename: str) -> str:
+    """Generates an encrypted secure token from a video filename using private key signatures."""
+    km = KeyManager()
+    private_key = km.load_private_key()
+    token_sig = private_key.sign(video_filename.encode('utf-8'))
+    return token_sig.hex()
+

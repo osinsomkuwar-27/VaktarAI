@@ -35,7 +35,7 @@ load_dotenv()
 # Add parent directory to path so document_processor can be imported
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from security import KeyManager, compute_sha256, sign_hash, verify_hash_signature
+from security import KeyManager, compute_sha256, sign_hash, verify_hash_signature, sign_video_file, generate_secure_token
 import ledger
 
 key_manager = KeyManager()
@@ -351,13 +351,11 @@ async def generate_video(
 
         # ── DIGITAL SIGNATURE & LEDGER ──
         final_video_path = os.path.join("generated_videos", video_filename)
-        video_hash = compute_sha256(final_video_path)
-        
-        private_key = key_manager.load_private_key()
-        signature_hex = sign_hash(private_key, video_hash)
+        video_hash, signature_hex = sign_video_file(final_video_path)
+        secure_token = generate_secure_token(video_filename)
         
         ledger.append_block(session_id, video_hash, signature_hex)
-        print(f"[PIPELINE] Signature added to ledger. Hash: {video_hash}")
+        print(f"[PIPELINE] Signature added to ledger. Hash: {video_hash} | Token: {secure_token[:16]}...")
 
         return JSONResponse({
             "success":         True,
@@ -369,7 +367,8 @@ async def generate_video(
             "ssml":            ssml,
             "session_id":      session_id,
             "video_hash":      video_hash,
-            "signature_hex":   signature_hex
+            "signature_hex":   signature_hex,
+            "secure_token":    secure_token
         })
 
     except HTTPException:
@@ -558,13 +557,11 @@ async def ask_and_generate(
 
         # ── DIGITAL SIGNATURE & LEDGER ──
         final_video_path = os.path.join("generated_videos", video_filename)
-        video_hash = compute_sha256(final_video_path)
-        
-        private_key = key_manager.load_private_key()
-        signature_hex = sign_hash(private_key, video_hash)
+        video_hash, signature_hex = sign_video_file(final_video_path)
+        secure_token = generate_secure_token(video_filename)
         
         ledger.append_block(session_id, video_hash, signature_hex)
-        print(f"[PIPELINE] Signature added to ledger. Hash: {video_hash}")
+        print(f"[PIPELINE] Signature added to ledger. Hash: {video_hash} | Token: {secure_token[:16]}...")
 
         return JSONResponse({
             "success":         True,
@@ -576,7 +573,8 @@ async def ask_and_generate(
             "caption_text":    caption_text,
             "session_id":      session_id,
             "video_hash":      video_hash,
-            "signature_hex":   signature_hex
+            "signature_hex":   signature_hex,
+            "secure_token":    secure_token
         })
 
     except HTTPException:
