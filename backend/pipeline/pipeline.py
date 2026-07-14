@@ -9,13 +9,14 @@ Full flow:
        → Voice (Kshitij :8003)
        → Avatar Video (Tanishka :8004)
        → Captions (captions :8006)
+       → Ledger (hash + chain the final video)          # NEW
        → Video URL returned to frontend
 
 Q&A flow:
   Question → Deepfake/Content Flagging (Gemini AI)
            → ai_brain :8005 (Gemini/Ollama)
            → answer text
-           → Translation → Emotion → Voice → Avatar → Captions
+           → Translation → Emotion → Voice → Avatar → Captions → Ledger  # NEW
            → Video URL + answer returned to frontend
 """
 
@@ -28,14 +29,19 @@ import os
 import json
 import uuid
 import sys
+import hashlib
 from dotenv import load_dotenv
 
-load_dotenv()
+from ledger import LedgerManager
+from ledger_routes import router as ledger_router
+
+load_dotenv("/workspaces/VaktarAI/.env")
 
 # Add parent directory to path so document_processor can be imported
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 app = FastAPI(title="AI Avatar Master Pipeline", version="1.0.0")
+app.include_router(ledger_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -64,6 +70,9 @@ UPLOAD_DIR = "uploads"
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
+
+# Ledger — records a tamper-evident chain of every generated video's hash.   # NEW
+ledger = LedgerManager()                                                     # NEW
 
 MODERATION_PROMPT = """You are a strict content moderation system for an AI avatar video platform.
 Analyze the user text and determine if it should be BLOCKED.
@@ -216,6 +225,30 @@ def add_captions_via_service(video_path: str, caption_text: str, target_language
         return os.path.basename(video_path)
 
 
+# ── Ledger helper ──────────────────────────────────────────────────────────────  # NEW
+
+def hash_and_log_video(video_path: str, session_id: str) -> dict:
+    """
+    Hashes the final (captioned) video and appends it to the tamper-evident
+    ledger chain.
+
+    NOTE: signature is a placeholder ("pending_signature") until the digital
+    signature feature branch merges. Replace with the real RSA-PSS signature
+    once that lands — right now /ledger/verify will not be doing genuine
+    signature verification, only chain-linkage and hash-integrity checks.
+    """
+    with open(video_path, "rb") as f:
+        video_hash = hashlib.sha256(f.read()).hexdigest()
+
+    block = ledger.append_block(
+        session_id=session_id,
+        video_hash=video_hash,
+        signature="pending_signature"  # TODO: replace once signature feature merges
+    )
+    print(f"[PIPELINE] Ledger: Block #{block['block_index']} recorded (hash {video_hash[:12]}...)")
+    return block
+
+
 # ── Health ─────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -340,6 +373,11 @@ async def generate_video(
             session_id=session_id
         )
 
+        # ── STEP 6: Ledger — hash + chain the final video ─────────────────  # NEW
+        print(f"[PIPELINE] Step 6: Recording video in ledger...")             # NEW
+        final_video_path = os.path.join("generated_videos", video_filename)   # NEW
+        ledger_block = hash_and_log_video(final_video_path, session_id)       # NEW
+
         video_url = f"http://localhost:8000/videos/{video_filename}"
         print(f"[PIPELINE] Done! {video_url}")
 
@@ -351,7 +389,8 @@ async def generate_video(
             "translated_text": translated_text,
             "caption_text":    caption_text,
             "ssml":            ssml,
-            "session_id":      session_id
+            "session_id":      session_id,
+            "ledger_block":    ledger_block   # NEW
         })
 
     except HTTPException:
@@ -535,6 +574,11 @@ async def ask_and_generate(
             session_id=session_id
         )
 
+        # ── STEP 6: Ledger — hash + chain the final video ─────────────────  # NEW
+        print(f"[PIPELINE] Step 6: Recording video in ledger...")             # NEW
+        final_video_path = os.path.join("generated_videos", video_filename)   # NEW
+        ledger_block = hash_and_log_video(final_video_path, session_id)       # NEW
+
         video_url = f"http://localhost:8000/videos/{video_filename}"
         print(f"[PIPELINE] Done! {video_url}")
 
@@ -547,6 +591,7 @@ async def ask_and_generate(
             "translated_text": translated_text,
             "caption_text":    caption_text,
             "session_id":      session_id,
+            "ledger_block":    ledger_block   # NEW
         })
 
     except HTTPException:
