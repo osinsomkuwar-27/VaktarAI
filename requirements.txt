@@ -19,6 +19,9 @@ httpx==0.25.2
 # ── Utils ──
 python-dotenv==1.0.0
 
+#digital signature
+cryptography>=42.0.0
+
 # ── SadTalker Dependencies ──
 # (installed separately via avatar_video/setup.py)
 # torch, torchvision, torchaudio
