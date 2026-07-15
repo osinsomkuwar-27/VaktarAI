@@ -15,9 +15,14 @@ def get_ledger():
 @router.get("/verify")
 def verify_ledger():
     """Runs the integrity check on the chain and returns the audit log."""
-    # NOTE: public_key wiring depends on the signature feature branch.
-    # Passing None for now since security.py is stubbed to always return True.
-    result = ledger.verify_chain(public_key=None)
+    from security import KeyManager
+    km = KeyManager()
+    try:
+        public_key = km.load_public_key()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load platform public key: {e}")
+    
+    result = ledger.verify_chain(public_key=public_key)
     return result
 
 
