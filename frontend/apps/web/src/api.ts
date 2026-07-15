@@ -114,3 +114,40 @@ export async function checkHealth() {
     return false
   }
 }
+
+export interface VerificationResponse {
+  authentic: boolean
+  video_hash: string
+  timestamp?: string
+  session_id?: string
+  details: string
+}
+
+/**
+ * getPublicKey — fetches the PEM public key from backend
+ */
+export async function getPublicKey(): Promise<{ public_key: string }> {
+  const res = await fetch(`${PIPELINE_URL}/security/public-key`)
+  if (!res.ok) throw new Error("Failed to fetch public key")
+  return res.json()
+}
+
+/**
+ * verifyVideo — uploads video file to backend `/verify-video` to run authenticity check
+ */
+export async function verifyVideo(file: File): Promise<VerificationResponse> {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const res = await fetch(`${PIPELINE_URL}/verify-video`, {
+    method: "POST",
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { detail?: string }).detail || "Verification request failed")
+  }
+
+  return res.json()
+}

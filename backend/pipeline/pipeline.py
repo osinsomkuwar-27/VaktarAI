@@ -36,6 +36,12 @@ load_dotenv()
 # Add parent directory to path so document_processor can be imported
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
+from security import KeyManager, compute_sha256, sign_hash, verify_hash_signature, sign_video_file, generate_secure_token
+import ledger
+
+key_manager = KeyManager()
+ledger.init_db()
+
 app = FastAPI(title="AI Avatar Master Pipeline", version="1.0.0")
 
 app.add_middleware(
@@ -382,6 +388,14 @@ async def generate_video(
         video_url = generate_signed_public_url(video_filename, base_url=str(request.base_url))
         print(f"[PIPELINE] Done! {video_url}")
 
+        # ── DIGITAL SIGNATURE & LEDGER ──
+        final_video_path = os.path.join("generated_videos", video_filename)
+        video_hash, signature_hex = sign_video_file(final_video_path)
+        secure_token = generate_secure_token(video_filename)
+        
+        ledger.append_block(session_id, video_hash, signature_hex)
+        print(f"[PIPELINE] Signature added to ledger. Hash: {video_hash} | Token: {secure_token[:16]}...")
+
         return JSONResponse({
             "success":         True,
             "video_url":       video_url,
@@ -390,7 +404,10 @@ async def generate_video(
             "translated_text": translated_text,
             "caption_text":    caption_text,
             "ssml":            ssml,
-            "session_id":      session_id
+            "session_id":      session_id,
+            "video_hash":      video_hash,
+            "signature_hex":   signature_hex,
+            "secure_token":    secure_token
         })
 
     except HTTPException:
@@ -579,6 +596,14 @@ async def ask_and_generate(
         video_url = generate_signed_public_url(video_filename, base_url=str(request.base_url))
         print(f"[PIPELINE] Done! {video_url}")
 
+        # ── DIGITAL SIGNATURE & LEDGER ──
+        final_video_path = os.path.join("generated_videos", video_filename)
+        video_hash, signature_hex = sign_video_file(final_video_path)
+        secure_token = generate_secure_token(video_filename)
+        
+        ledger.append_block(session_id, video_hash, signature_hex)
+        print(f"[PIPELINE] Signature added to ledger. Hash: {video_hash} | Token: {secure_token[:16]}...")
+
         return JSONResponse({
             "success":         True,
             "video_url":       video_url,
@@ -588,6 +613,9 @@ async def ask_and_generate(
             "translated_text": translated_text,
             "caption_text":    caption_text,
             "session_id":      session_id,
+            "video_hash":      video_hash,
+            "signature_hex":   signature_hex,
+            "secure_token":    secure_token
         })
 
     except HTTPException:
@@ -598,6 +626,66 @@ async def ask_and_generate(
         for f in [photo_path, audio_path]:
             if os.path.exists(f):
                 os.remove(f)
+
+
+@app.get("/security/public-key")
+def get_public_key():
+    try:
+        pem = key_manager.get_public_key_pem()
+        return {"public_key": pem}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/verify-video")
+async def verify_video(file: UploadFile = File(...)):
+    try:
+        import tempfile
+        import shutil
+
+        # Copy the uploaded file to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # 1. Compute SHA-256 hash of the temp file
+            video_hash = compute_sha256(tmp_path)
+        finally:
+            # 2. Clean up the temp file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+        # 3. Query the SQLite ledger database
+        block = ledger.get_block_by_hash(video_hash)
+        if not block:
+            return JSONResponse({
+                "authentic": False,
+                "video_hash": video_hash,
+                "details": "Verification failed: Video fingerprint not found in ledger or signature is invalid."
+            })
+
+        # 4. Verify signature using active public key
+        public_key = key_manager.load_public_key()
+        is_valid = verify_hash_signature(public_key, video_hash, block["signature"])
+
+        if is_valid:
+            return JSONResponse({
+                "authentic": True,
+                "video_hash": video_hash,
+                "timestamp": block["timestamp"],
+                "session_id": block["session_id"],
+                "details": "This video is verified authentic and unaltered from Vaktar AI."
+            })
+        else:
+            return JSONResponse({
+                "authentic": False,
+                "video_hash": video_hash,
+                "details": "Verification failed: Video fingerprint not found in ledger or signature is invalid."
+            })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Run with: uvicorn pipeline:app --reload --port 8000
