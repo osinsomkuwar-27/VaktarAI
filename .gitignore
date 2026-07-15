@@ -78,3 +78,5 @@ avatar_video/.python-version
 backend/.python-version
 
 avatar_video/venv
+
+backend/experiments
