@@ -4,12 +4,13 @@ Standalone test for LedgerManager — run directly, no server needed.
 
 Proves:
   1. Blocks chain correctly (each previous_hash matches prior block_hash)
-  2. verify_chain() passes on a clean ledger
+  2. verify_chain() passes on a clean ledger with valid cryptographic signatures
   3. Tampering with one block is detected and reported precisely
 """
 import os
 import sqlite3
 from ledger import LedgerManager
+from security import KeyManager, sign_hash
 
 TEST_DB = "test_ledger.db"
 
@@ -22,16 +23,25 @@ def reset_test_db():
 def main():
     reset_test_db()
     ledger = LedgerManager(db_path=TEST_DB)
+    
+    # Initialize real keys for test signatures
+    km = KeyManager()
+    private_key = km.load_private_key()
+    public_key = km.load_public_key()
 
     print("=== Step 1: Adding 3 blocks ===")
-    b0 = ledger.append_block(session_id="sess_001", video_hash="hash_video_A", signature="sig_A")
-    b1 = ledger.append_block(session_id="sess_002", video_hash="hash_video_B", signature="sig_B")
-    b2 = ledger.append_block(session_id="sess_003", video_hash="hash_video_C", signature="sig_C")
+    sig_A = sign_hash(private_key, "hash_video_A")
+    sig_B = sign_hash(private_key, "hash_video_B")
+    sig_C = sign_hash(private_key, "hash_video_C")
+    
+    b0 = ledger.append_block(session_id="sess_001", video_hash="hash_video_A", signature=sig_A)
+    b1 = ledger.append_block(session_id="sess_002", video_hash="hash_video_B", signature=sig_B)
+    b2 = ledger.append_block(session_id="sess_003", video_hash="hash_video_C", signature=sig_C)
     for b in (b0, b1, b2):
         print(f"  Block #{b['block_index']} -> block_hash={b['block_hash'][:16]}...")
 
     print("\n=== Step 2: Verifying clean chain ===")
-    result = ledger.verify_chain(public_key=None)
+    result = ledger.verify_chain(public_key=public_key)
     print(f"  valid={result['valid']}  status={result['status']}")
     assert result["valid"] is True, "Clean chain should verify as valid!"
 
@@ -44,7 +54,7 @@ def main():
         conn.commit()
 
     print("=== Step 4: Verifying tampered chain ===")
-    result = ledger.verify_chain(public_key=None)
+    result = ledger.verify_chain(public_key=public_key)
     print(f"  valid={result['valid']}  status={result['status']}")
     print(f"  details: {result.get('details')}")
     assert result["valid"] is False, "Tampered chain must be detected!"

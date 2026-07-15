@@ -1,10 +1,12 @@
 import {
   useState,
   useRef,
+  useEffect,
+} from "react"
+import type {
   ReactNode,
   DragEvent,
   ChangeEvent,
-  useEffect,
 } from "react"
 
 // ─── Design tokens ─────────────────────────────────────────────────
@@ -361,7 +363,7 @@ export default function AvatarGenerator({
   const [bgImage, setBgImage] = useState<string | null>(null)
   const [bgImageName, setBgImageName] = useState<string | null>(null)
   const [bgImageFile, setBgImageFile] = useState<File | null>(null)
-  const [bgHover, setBgHover] = useState(false)
+  // const [bgHover, setBgHover] = useState(false)
   const [scenePickerOpen, setScenePickerOpen] = useState(false)
   const [scenePickerTab, setScenePickerTab] = useState<
     "scenes" | "solid" | "upload"
@@ -678,6 +680,9 @@ export default function AvatarGenerator({
   // The canvas receives this single image so the backend never needs to know
   // about separate background/portrait — it just gets one composed photo.
   const compositeImage = async (): Promise<File> => {
+    if (bgImageFile) {
+      console.log("Compositing background image file:", bgImageFile.name)
+    }
     const W = 1280
     const H = 720
     const canvas = document.createElement("canvas")

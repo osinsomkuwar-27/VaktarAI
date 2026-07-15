@@ -16,7 +16,7 @@ export async function generateAvatar(
   targetLanguage = 'hi',
   speaker = 'shreeja',
   background: Background = null
-) {
+): Promise<{ video_url: string; [key: string]: any }> {
   const formData = new FormData()
   formData.append('photo', imageFile)
   formData.append('text', text)

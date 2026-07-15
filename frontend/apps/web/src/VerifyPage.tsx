@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
-  Shield, 
-  ShieldCheck, 
   ShieldAlert, 
   FileVideo, 
   Copy, 
@@ -15,11 +13,11 @@ import {
   Database,
   Lock
 } from "lucide-react"
-import { verifyVideo, getPublicKey, VerificationResponse } from "./api"
+import { verifyVideo, getPublicKey, type VerificationResponse } from "./api"
 
 export default function VerifyPage() {
   const [dragActive, setDragActive] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
+  const [_file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<"idle" | "hashing" | "checking" | "success" | "failed" | "error">("idle")
   const [hash, setHash] = useState("")
   const [result, setResult] = useState<VerificationResponse | null>(null)
