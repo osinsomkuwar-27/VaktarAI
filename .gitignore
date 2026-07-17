@@ -79,4 +79,8 @@ backend/.python-version
 
 avatar_video/venv
 
+# ── Cryptographic Keys & Database ──
+backend/pipeline/keys/
+backend/pipeline/ledger.db
+
 backend/experiments

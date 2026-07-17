@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import { cn } from "@workspace/ui/lib/utils"
 import { useLocation, useNavigate } from "react-router-dom"
@@ -18,6 +18,7 @@ interface NavBarProps {
 
 const loggedOutItems: NavItem[] = [
   { name: "Home", url: "/" },
+  { name: "Verify", url: "/verify" },
   { name: "About", url: "/#about" },
   { name: "Guide", url: "/#guide" },
   { name: "Sectors", url: "/#sectors" },
@@ -29,6 +30,7 @@ const loggedInItems: NavItem[] = [
   { name: "Home", url: "/" },
   { name: "Chat", url: "/chat" },
   { name: "Gallery", url: "/gallery" },
+  { name: "Verify", url: "/verify" },
 ]
 
 export function NavBar({ items, className }: NavBarProps) {

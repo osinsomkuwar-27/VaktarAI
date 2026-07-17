@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent, FormEvent } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import type { ChangeEvent, KeyboardEvent, FormEvent } from 'react';
 
 type Role = 'avatar' | 'user';
 
